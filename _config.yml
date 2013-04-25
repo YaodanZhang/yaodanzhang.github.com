@@ -2,10 +2,10 @@
 #      Main Configs       #
 # ----------------------- #
 
-url: http://yoursite.com
+url: http://YaodanZhang.github.io
 title: My Octopress Blog
 subtitle: A blogging framework for hackers.
-author: Your Name
+author: Yaodan Zhang (张耀丹)
 simple_search: http://google.com/search
 description:
 
