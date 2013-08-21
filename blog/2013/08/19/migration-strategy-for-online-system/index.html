@@ -1,0 +1,702 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>在线系统数据&服务的迁移策略 - Yaodan's Blog</title>
+  <meta name="author" content="Yaodan Zhang (张耀丹)">
+
+  
+  <meta name="description" content="当需要在正在运行的在线系统中进行数据或服务的迁移时，有很多问题需要考虑，如何设计迁移策略以保证数据正确迁移，如何处理系统间的依赖，如何保证服务持续可用等等。本文将从一个服务提供者的角度，讨论如何进行数据迁移才能保证对外提供的服务接口前后一致且持续可用，实现对于客户端的无缝迁移。 考虑一个简单的场景 &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://YaodanZhang.github.io/blog/2013/08/19/migration-strategy-for-online-system">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/atom.xml" rel="alternate" title="Yaodan's Blog" type="application/atom+xml">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script>!window.jQuery && document.write(unescape('%3Cscript src="./javascripts/lib/jquery.min.js"%3E%3C/script%3E'))</script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">Yaodan's Blog</a></h1>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:YaodanZhang.github.io" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">在线系统数据&服务的迁移策略</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-08-19T10:11:00+08:00" pubdate data-updated="true">Aug 19<span>th</span>, 2013</time>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>当需要在正在运行的在线系统中进行数据或服务的迁移时，有很多问题需要考虑，如何设计迁移策略以保证数据正确迁移，如何处理系统间的依赖，如何保证服务持续可用等等。本文将从一个服务提供者的角度，讨论如何进行数据迁移才能保证对外提供的服务接口前后一致且持续可用，实现对于客户端的无缝迁移。</p>
+
+<p>考虑一个简单的场景，有一个web应用，存有一定数量的用户信息，以前用户的密码都是用明文存在数据库里面的，作为一个有理想有道德的程序员，我现在想升级系统，对这些密码信息进行加密，我已经准备好了加密算法和相关的实现代码，现在问题来了，我要如何加密现有用户的密码呢？</p>
+
+<!--more -->
+
+
+<p>Solution 1：写个程序在后台进行加密转换，然后重启系统，用新的代码访问加密后的数据。
+存在的问题：如果在转换的过程中有新的数据进来或对原有数据有修改，如何处理？如何保证加密前后的数据同步？</p>
+
+<p>Solution 2：停止服务 &#8211;> 执行加密转换 &#8211;> 重启服务，用新的代码访问加密后的数据。
+存在的问题：也许在开发机器上测试100遍，这个过程每次都不超过1分钟，但是根据“Showcase必挂”原理，在产品环境上做同样的事情很可能就要1个小时，甚至更多。如果我的系统1分钟能挣1万块钱，你还告诉我要这么搞么？</p>
+
+<p>那么该如何进行原有数据的加密呢？</p>
+
+<p><img src="/images/migration/Slide1.jpg" alt="Alt img" /></p>
+
+<p>图1：未加密时的调用</p>
+
+<p><img src="/images/migration/Slide2.jpg" alt="Alt img" /></p>
+
+<p>图2：加密后的调用</p>
+
+<p>我们的目标是从图1转换成图2，数据的迁移肯定是不能一下子就完成的，那么我们就需要一步一步的去实现这样的<code>DAO</code>调用的转换。</p>
+
+<h2>Step 0：现有系统接口。</h2>
+
+<h4>Service层：</h4>
+
+<ul>
+<li><p><code>UserService</code>，用户处理接口，对外服务API</p></li>
+<li><p><code>UserServiceImpl</code>，<code>UserService</code>接口的实现，调用<code>UserDAO</code></p></li>
+</ul>
+
+
+<h4>DAO层：</h4>
+
+<ul>
+<li><code>UserDAO</code>，用户数据访问接口</li>
+</ul>
+
+
+<figure class='code'><figcaption><span>UserDAO.java </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="kd">public</span> <span class="kd">interface</span> <span class="nc">UserDAO</span> <span class="o">{</span>
+</span><span class='line'>    <span class="n">User</span> <span class="nf">add</span><span class="o">(</span><span class="n">User</span> <span class="n">user</span><span class="o">);</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">User</span> <span class="nf">update</span><span class="o">(</span><span class="n">User</span> <span class="n">user</span><span class="o">);</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">User</span> <span class="nf">get</span><span class="o">(</span><span class="n">String</span> <span class="n">id</span><span class="o">);</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="kt">boolean</span> <span class="nf">delete</span><span class="o">(</span><span class="n">String</span> <span class="n">id</span><span class="o">);</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="kt">boolean</span> <span class="nf">existed</span><span class="o">(</span><span class="n">String</span> <span class="n">username</span><span class="o">,</span> <span class="n">String</span> <span class="n">password</span><span class="o">);</span>
+</span><span class='line'><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<ul>
+<li><code>UserDAOImpl</code>，<code>UserDAO</code>接口针对未加密数据的实现</li>
+</ul>
+
+
+<figure class='code'><figcaption><span>UserDAOImpl.java </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="kd">public</span> <span class="kd">class</span> <span class="nc">UserDAOImpl</span> <span class="kd">implements</span> <span class="n">UserDAO</span> <span class="o">{</span>
+</span><span class='line'>    <span class="kd">private</span> <span class="n">UserMapper</span> <span class="n">userMapper</span><span class="o">;</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="nd">@Override</span>
+</span><span class='line'>    <span class="kd">public</span> <span class="n">User</span> <span class="nf">add</span><span class="o">(</span><span class="n">User</span> <span class="n">user</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="k">return</span> <span class="n">userMapper</span><span class="o">.</span><span class="na">insert</span><span class="o">(</span><span class="n">user</span><span class="o">);</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="nd">@Override</span>
+</span><span class='line'>    <span class="kd">public</span> <span class="n">User</span> <span class="nf">update</span><span class="o">(</span><span class="n">User</span> <span class="n">user</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="k">return</span> <span class="n">userMapper</span><span class="o">.</span><span class="na">update</span><span class="o">(</span><span class="n">user</span><span class="o">);</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="nd">@Override</span>
+</span><span class='line'>    <span class="kd">public</span> <span class="n">User</span> <span class="nf">get</span><span class="o">(</span><span class="n">String</span> <span class="n">id</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="k">return</span> <span class="n">userMapper</span><span class="o">.</span><span class="na">selectById</span><span class="o">(</span><span class="n">id</span><span class="o">);</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="nd">@Override</span>
+</span><span class='line'>    <span class="kd">public</span> <span class="kt">boolean</span> <span class="nf">delete</span><span class="o">(</span><span class="n">String</span> <span class="n">id</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="k">return</span> <span class="n">userMapper</span><span class="o">.</span><span class="na">deleteById</span><span class="o">(</span><span class="n">id</span><span class="o">);</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="nd">@Override</span>
+</span><span class='line'>    <span class="kd">public</span> <span class="kt">boolean</span> <span class="nf">existed</span><span class="o">(</span><span class="n">String</span> <span class="n">username</span><span class="o">,</span> <span class="n">String</span> <span class="n">password</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">User</span> <span class="n">user</span> <span class="o">=</span> <span class="n">userMapper</span><span class="o">.</span><span class="na">selectByUsername</span><span class="o">(</span><span class="n">username</span><span class="o">);</span>
+</span><span class='line'>        <span class="k">return</span> <span class="n">user</span> <span class="o">!=</span> <span class="kc">null</span> <span class="o">&amp;&amp;</span> <span class="n">nullToEmpty</span><span class="o">(</span><span class="n">password</span><span class="o">).</span><span class="na">equals</span><span class="o">(</span><span class="n">user</span><span class="o">.</span><span class="na">getPassword</span><span class="o">());</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>Step 1：数据库的设计。</h2>
+
+<p>假设以前我们的用户表有三个字段：<code>id</code>，<code>username</code>，<code>password</code>，那么我们实现的第一步是加一个字段<code>encryptedPassword</code>。</p>
+
+<p>这样乍看起来数据库是有冗余的，但是我们如果直接修改<code>password</code>列中的内容，实质上就是删除了一个原有的列，再新加了一列，我们知道，步子迈得大了，是容易扯着蛋的，具体原因Solution 1/2 中已经讲了。</p>
+
+<p>相应的，我们需要增加一个<code>UserDAO</code>接口针对加密数据的实现：<code>UserDAOEncryptedImpl</code>。</p>
+
+<figure class='code'><figcaption><span>UserDAOEncryptedImpl.java </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="kd">public</span> <span class="kd">class</span> <span class="nc">UserDAOEncryptedImpl</span> <span class="kd">implements</span> <span class="n">UserDAO</span> <span class="o">{</span>
+</span><span class='line'>    <span class="kd">private</span> <span class="n">UserMapper</span> <span class="n">userMapperForEncryption</span><span class="o">;</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="nd">@Override</span>
+</span><span class='line'>    <span class="kd">public</span> <span class="n">User</span> <span class="nf">add</span><span class="o">(</span><span class="n">User</span> <span class="n">user</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">user</span><span class="o">.</span><span class="na">setPassword</span><span class="o">(</span><span class="n">encrypt</span><span class="o">(</span><span class="n">user</span><span class="o">.</span><span class="na">getPassword</span><span class="o">()));</span>
+</span><span class='line'>        <span class="k">return</span> <span class="n">userMapperForEncryption</span><span class="o">.</span><span class="na">insert</span><span class="o">(</span><span class="n">user</span><span class="o">);</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="nd">@Override</span>
+</span><span class='line'>    <span class="kd">public</span> <span class="n">User</span> <span class="nf">update</span><span class="o">(</span><span class="n">User</span> <span class="n">user</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">user</span><span class="o">.</span><span class="na">setPassword</span><span class="o">(</span><span class="n">encrypt</span><span class="o">(</span><span class="n">user</span><span class="o">.</span><span class="na">getPassword</span><span class="o">()));</span>
+</span><span class='line'>        <span class="k">return</span> <span class="n">userMapperForEncryption</span><span class="o">.</span><span class="na">update</span><span class="o">(</span><span class="n">user</span><span class="o">);</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="nd">@Override</span>
+</span><span class='line'>    <span class="kd">public</span> <span class="n">User</span> <span class="nf">get</span><span class="o">(</span><span class="n">String</span> <span class="n">id</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="k">return</span> <span class="n">userMapperForEncryption</span><span class="o">.</span><span class="na">selectById</span><span class="o">(</span><span class="n">id</span><span class="o">);</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="nd">@Override</span>
+</span><span class='line'>    <span class="kd">public</span> <span class="kt">boolean</span> <span class="nf">delete</span><span class="o">(</span><span class="n">String</span> <span class="n">id</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="k">return</span> <span class="n">userMapperForEncryption</span><span class="o">.</span><span class="na">deleteById</span><span class="o">(</span><span class="n">id</span><span class="o">);</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="nd">@Override</span>
+</span><span class='line'>    <span class="kd">public</span> <span class="kt">boolean</span> <span class="nf">existed</span><span class="o">(</span><span class="n">String</span> <span class="n">username</span><span class="o">,</span> <span class="n">String</span> <span class="n">password</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">User</span> <span class="n">user</span> <span class="o">=</span> <span class="n">userMapperForEncryption</span><span class="o">.</span><span class="na">selectByUsername</span><span class="o">(</span><span class="n">username</span><span class="o">);</span>
+</span><span class='line'>        <span class="k">return</span> <span class="n">user</span> <span class="o">!=</span> <span class="kc">null</span> <span class="o">&amp;&amp;</span> <span class="n">encrypt</span><span class="o">(</span><span class="n">nullToEmpty</span><span class="o">(</span><span class="n">password</span><span class="o">)).</span><span class="na">equals</span><span class="o">(</span><span class="n">user</span><span class="o">.</span><span class="na">getPassword</span><span class="o">());</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p><code>UserDAOImpl</code>与<code>UserDAOEncryptedImpl</code>的主要区别在于这几个方法：</p>
+
+<p>其中，对于<code>password</code>来说，<code>add()</code>，<code>update()</code>和<code>delete()</code>方法是写数据，<code>existed()</code>方法是读数据。</p>
+
+<h2>Step 2：增加一个组合模式DAO实现。</h2>
+
+<p><img src="/images/migration/Slide3.jpg" alt="Alt img" /></p>
+
+<p>实现代码如下：</p>
+
+<figure class='code'><figcaption><span>CompositeUserDAOImpl.java </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="kd">public</span> <span class="kd">class</span> <span class="nc">CompositeUserDAOImpl</span> <span class="kd">implements</span> <span class="n">UserDAO</span> <span class="o">{</span>
+</span><span class='line'>    <span class="kd">private</span> <span class="n">UserDAO</span> <span class="n">userDAOWithoutEncryption</span> <span class="o">=</span> <span class="k">new</span> <span class="n">UserDAOImpl</span><span class="o">();</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="nd">@Override</span>
+</span><span class='line'>    <span class="kd">public</span> <span class="n">User</span> <span class="nf">add</span><span class="o">(</span><span class="n">User</span> <span class="n">user</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="k">return</span> <span class="n">userDAOWithoutEncryption</span><span class="o">.</span><span class="na">add</span><span class="o">(</span><span class="n">user</span><span class="o">);</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="nd">@Override</span>
+</span><span class='line'>    <span class="kd">public</span> <span class="n">User</span> <span class="nf">update</span><span class="o">(</span><span class="n">User</span> <span class="n">user</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="k">return</span> <span class="n">userDAOWithoutEncryption</span><span class="o">.</span><span class="na">update</span><span class="o">(</span><span class="n">user</span><span class="o">);</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="nd">@Override</span>
+</span><span class='line'>    <span class="kd">public</span> <span class="n">User</span> <span class="nf">get</span><span class="o">(</span><span class="n">String</span> <span class="n">id</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="k">return</span> <span class="n">userDAOWithoutEncryption</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="n">id</span><span class="o">);</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="nd">@Override</span>
+</span><span class='line'>    <span class="kd">public</span> <span class="kt">boolean</span> <span class="nf">delete</span><span class="o">(</span><span class="n">String</span> <span class="n">id</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="k">return</span> <span class="n">userDAOWithoutEncryption</span><span class="o">.</span><span class="na">delete</span><span class="o">(</span><span class="n">id</span><span class="o">);</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="nd">@Override</span>
+</span><span class='line'>    <span class="kd">public</span> <span class="kt">boolean</span> <span class="nf">existed</span><span class="o">(</span><span class="n">String</span> <span class="n">username</span><span class="o">,</span> <span class="n">String</span> <span class="n">password</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="k">return</span> <span class="n">userDAOWithoutEncryption</span><span class="o">.</span><span class="na">existed</span><span class="o">(</span><span class="n">username</span><span class="o">,</span> <span class="n">password</span><span class="o">);</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>将<code>UserServiceImpl</code>中的<code>userDAO</code>改成<code>CompositeUserDAOImpl</code>的实例。</p>
+
+<p>当前状态下，该<code>CompositeUserDAOImpl</code>对<code>user</code>的读/写都操作未加密数据，使用<code>UserDAOImpl</code>来实现。</p>
+
+<h2>Step 3：</h2>
+
+<p><img src="/images/migration/Slide4.jpg" alt="Alt img" /></p>
+
+<p>修改<code>CompositeUserDAOImpl</code>，使其读数据仍操作未加密数据，但写数据同时修改加密和未加密两个列。</p>
+
+<figure class='code'><figcaption><span>CompositeUserDAOImpl.java </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="kd">public</span> <span class="kd">class</span> <span class="nc">CompositeUserDAOImpl</span> <span class="kd">implements</span> <span class="n">UserDAO</span> <span class="o">{</span>
+</span><span class='line'>    <span class="kd">private</span> <span class="n">UserDAO</span> <span class="n">userDAOWithoutEncryption</span> <span class="o">=</span> <span class="k">new</span> <span class="n">UserDAOImpl</span><span class="o">();</span>
+</span><span class='line'>    <span class="kd">private</span> <span class="n">UserDAO</span> <span class="n">userDAOWithEncryption</span> <span class="o">=</span> <span class="k">new</span> <span class="n">UserDAOEncryptedImpl</span><span class="o">();</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="nd">@Override</span>
+</span><span class='line'>    <span class="kd">public</span> <span class="n">User</span> <span class="nf">add</span><span class="o">(</span><span class="n">User</span> <span class="n">user</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">userDAOWithEncryption</span><span class="o">.</span><span class="na">add</span><span class="o">(</span><span class="n">user</span><span class="o">.</span><span class="na">clone</span><span class="o">());</span>
+</span><span class='line'>        <span class="k">return</span> <span class="n">userDAOWithoutEncryption</span><span class="o">.</span><span class="na">add</span><span class="o">(</span><span class="n">user</span><span class="o">);</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="nd">@Override</span>
+</span><span class='line'>    <span class="kd">public</span> <span class="n">User</span> <span class="nf">update</span><span class="o">(</span><span class="n">User</span> <span class="n">user</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">userDAOWithEncryption</span><span class="o">.</span><span class="na">update</span><span class="o">(</span><span class="n">user</span><span class="o">.</span><span class="na">clone</span><span class="o">());</span>
+</span><span class='line'>        <span class="k">return</span> <span class="n">userDAOWithoutEncryption</span><span class="o">.</span><span class="na">update</span><span class="o">(</span><span class="n">user</span><span class="o">);</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="nd">@Override</span>
+</span><span class='line'>    <span class="kd">public</span> <span class="n">User</span> <span class="nf">get</span><span class="o">(</span><span class="n">String</span> <span class="n">id</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="k">return</span> <span class="n">userDAOWithoutEncryption</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="n">id</span><span class="o">);</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="nd">@Override</span>
+</span><span class='line'>    <span class="kd">public</span> <span class="kt">boolean</span> <span class="nf">delete</span><span class="o">(</span><span class="n">String</span> <span class="n">id</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">userDAOWithEncryption</span><span class="o">.</span><span class="na">delete</span><span class="o">(</span><span class="n">id</span><span class="o">);</span>
+</span><span class='line'>        <span class="k">return</span> <span class="n">userDAOWithoutEncryption</span><span class="o">.</span><span class="na">delete</span><span class="o">(</span><span class="n">id</span><span class="o">);</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="nd">@Override</span>
+</span><span class='line'>    <span class="kd">public</span> <span class="kt">boolean</span> <span class="nf">existed</span><span class="o">(</span><span class="n">String</span> <span class="n">username</span><span class="o">,</span> <span class="n">String</span> <span class="n">password</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="k">return</span> <span class="n">userDAOWithoutEncryption</span><span class="o">.</span><span class="na">existed</span><span class="o">(</span><span class="n">username</span><span class="o">,</span> <span class="n">password</span><span class="o">);</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>Step 4：开始进行数据迁移。</h2>
+
+<p>可以写个脚本在后台执行，将<code>password</code>列中的数据加密后存入<code>encryptedPassword</code>列。</p>
+
+<h2>Step 5：</h2>
+
+<p><img src="/images/migration/Slide5.jpg" alt="Alt img" /></p>
+
+<p>数据迁移完成后，修改<code>CompositeUserDAOImpl</code>，使其读数据从加密数据列中读取，写数据仍同时修改加密和未加密两个列。</p>
+
+<figure class='code'><figcaption><span>CompositeUserDAOImpl.java </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="kd">public</span> <span class="kd">class</span> <span class="nc">CompositeUserDAOImpl</span> <span class="kd">implements</span> <span class="n">UserDAO</span> <span class="o">{</span>
+</span><span class='line'>    <span class="kd">private</span> <span class="n">UserDAO</span> <span class="n">userDAOWithoutEncryption</span> <span class="o">=</span> <span class="k">new</span> <span class="n">UserDAOImpl</span><span class="o">();</span>
+</span><span class='line'>    <span class="kd">private</span> <span class="n">UserDAO</span> <span class="n">userDAOWithEncryption</span> <span class="o">=</span> <span class="k">new</span> <span class="n">UserDAOEncryptedImpl</span><span class="o">();</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="nd">@Override</span>
+</span><span class='line'>    <span class="kd">public</span> <span class="n">User</span> <span class="nf">add</span><span class="o">(</span><span class="n">User</span> <span class="n">user</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">userDAOWithoutEncryption</span><span class="o">.</span><span class="na">add</span><span class="o">(</span><span class="n">user</span><span class="o">);</span>
+</span><span class='line'>        <span class="k">return</span> <span class="n">userDAOWithEncryption</span><span class="o">.</span><span class="na">add</span><span class="o">(</span><span class="n">user</span><span class="o">.</span><span class="na">clone</span><span class="o">());</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="nd">@Override</span>
+</span><span class='line'>    <span class="kd">public</span> <span class="n">User</span> <span class="nf">update</span><span class="o">(</span><span class="n">User</span> <span class="n">user</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">userDAOWithoutEncryption</span><span class="o">.</span><span class="na">update</span><span class="o">(</span><span class="n">user</span><span class="o">.</span><span class="na">clone</span><span class="o">());</span>
+</span><span class='line'>        <span class="k">return</span> <span class="n">userDAOWithEncryption</span><span class="o">.</span><span class="na">update</span><span class="o">(</span><span class="n">user</span><span class="o">);</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="nd">@Override</span>
+</span><span class='line'>    <span class="kd">public</span> <span class="n">User</span> <span class="nf">get</span><span class="o">(</span><span class="n">String</span> <span class="n">id</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="k">return</span> <span class="n">userDAOWithEncryption</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="n">id</span><span class="o">);</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="nd">@Override</span>
+</span><span class='line'>    <span class="kd">public</span> <span class="kt">boolean</span> <span class="nf">delete</span><span class="o">(</span><span class="n">String</span> <span class="n">id</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">userDAOWithoutEncryption</span><span class="o">.</span><span class="na">delete</span><span class="o">(</span><span class="n">id</span><span class="o">);</span>
+</span><span class='line'>        <span class="k">return</span> <span class="n">userDAOWithEncryption</span><span class="o">.</span><span class="na">delete</span><span class="o">(</span><span class="n">id</span><span class="o">);</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="nd">@Override</span>
+</span><span class='line'>    <span class="kd">public</span> <span class="kt">boolean</span> <span class="nf">existed</span><span class="o">(</span><span class="n">String</span> <span class="n">username</span><span class="o">,</span> <span class="n">String</span> <span class="n">password</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="k">return</span> <span class="n">userDAOWithEncryption</span><span class="o">.</span><span class="na">existed</span><span class="o">(</span><span class="n">username</span><span class="o">,</span> <span class="n">password</span><span class="o">);</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>Step 6：</h2>
+
+<p><img src="/images/migration/Slide6.jpg" alt="Alt img" /></p>
+
+<p>上线运行一段时间后，当确保<code>password</code>列中的数据已经完全正确迁移并且没有其他的程序依赖与它，便可以将这一列移除了。<code>CompositeUserDAOImpl</code>中将只调用加密数据的<code>DAO</code>。</p>
+
+<figure class='code'><figcaption><span>CompositeUserDAOImpl.java </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="kd">public</span> <span class="kd">class</span> <span class="nc">CompositeUserDAOImpl</span> <span class="kd">implements</span> <span class="n">UserDAO</span> <span class="o">{</span>
+</span><span class='line'>    <span class="kd">private</span> <span class="n">UserDAO</span> <span class="n">userDAOWithEncryption</span> <span class="o">=</span> <span class="k">new</span> <span class="n">UserDAOEncryptedImpl</span><span class="o">();</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="nd">@Override</span>
+</span><span class='line'>    <span class="kd">public</span> <span class="n">User</span> <span class="nf">add</span><span class="o">(</span><span class="n">User</span> <span class="n">user</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="k">return</span> <span class="n">userDAOWithEncryption</span><span class="o">.</span><span class="na">add</span><span class="o">(</span><span class="n">user</span><span class="o">.</span><span class="na">clone</span><span class="o">());</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="nd">@Override</span>
+</span><span class='line'>    <span class="kd">public</span> <span class="n">User</span> <span class="nf">update</span><span class="o">(</span><span class="n">User</span> <span class="n">user</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="k">return</span> <span class="n">userDAOWithEncryption</span><span class="o">.</span><span class="na">update</span><span class="o">(</span><span class="n">user</span><span class="o">);</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="nd">@Override</span>
+</span><span class='line'>    <span class="kd">public</span> <span class="n">User</span> <span class="nf">get</span><span class="o">(</span><span class="n">String</span> <span class="n">id</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="k">return</span> <span class="n">userDAOWithEncryption</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="n">id</span><span class="o">);</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="nd">@Override</span>
+</span><span class='line'>    <span class="kd">public</span> <span class="kt">boolean</span> <span class="nf">delete</span><span class="o">(</span><span class="n">String</span> <span class="n">id</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="k">return</span> <span class="n">userDAOWithEncryption</span><span class="o">.</span><span class="na">delete</span><span class="o">(</span><span class="n">id</span><span class="o">);</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="nd">@Override</span>
+</span><span class='line'>    <span class="kd">public</span> <span class="kt">boolean</span> <span class="nf">existed</span><span class="o">(</span><span class="n">String</span> <span class="n">username</span><span class="o">,</span> <span class="n">String</span> <span class="n">password</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="k">return</span> <span class="n">userDAOWithEncryption</span><span class="o">.</span><span class="na">existed</span><span class="o">(</span><span class="n">username</span><span class="o">,</span> <span class="n">password</span><span class="o">);</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">Yaodan Zhang (张耀丹)</span></span>
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-08-19T10:11:00+08:00" pubdate data-updated="true">Aug 19<span>th</span>, 2013</time>
+      
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/ji-zhu-za-tan/'>技术杂谈</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="http://twitter.com/share" class="twitter-share-button" data-url="http://YaodanZhang.github.io/blog/2013/08/19/migration-strategy-for-online-system/" data-via="" data-counturl="http://YaodanZhang.github.io/blog/2013/08/19/migration-strategy-for-online-system/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2013/05/04/graduation-trip-of-6-huster/" title="Previous Post: 六个人的毕业旅行">&laquo; 六个人的毕业旅行</a>
+      
+      
+    </p>
+  </footer>
+</article>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2013/08/19/migration-strategy-for-online-system/">在线系统数据&服务的迁移策略</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/05/04/graduation-trip-of-6-huster/">六个人的毕业旅行</a>
+      </li>
+    
+  </ul>
+</section>
+
+
+
+
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2013 - Yaodan Zhang (张耀丹) -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = 'http://platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>
