@@ -219,8 +219,8 @@
 </span><span class='line'>
 </span><span class='line'>    <span class="nd">@Override</span>
 </span><span class='line'>    <span class="kd">public</span> <span class="kt">boolean</span> <span class="nf">existed</span><span class="o">(</span><span class="n">String</span> <span class="n">username</span><span class="o">,</span> <span class="n">String</span> <span class="n">password</span><span class="o">)</span> <span class="o">{</span>
-</span><span class='line'>        <span class="n">User</span> <span class="n">user</span> <span class="o">=</span> <span class="n">userMapper</span><span class="o">.</span><span class="na">selectByUsername</span><span class="o">(</span><span class="n">username</span><span class="o">);</span>
-</span><span class='line'>        <span class="k">return</span> <span class="n">user</span> <span class="o">!=</span> <span class="kc">null</span> <span class="o">&amp;&amp;</span> <span class="n">nullToEmpty</span><span class="o">(</span><span class="n">password</span><span class="o">).</span><span class="na">equals</span><span class="o">(</span><span class="n">user</span><span class="o">.</span><span class="na">getPassword</span><span class="o">());</span>
+</span><span class='line'>        <span class="n">User</span> <span class="n">user</span> <span class="o">=</span> <span class="n">userMapper</span><span class="o">.</span><span class="na">selectByUsernamePassword</span><span class="o">(</span><span class="n">username</span><span class="o">,</span> <span class="n">password</span><span class="o">);</span>
+</span><span class='line'>        <span class="k">return</span> <span class="n">user</span> <span class="o">!=</span> <span class="kc">null</span><span class="o">;</span>
 </span><span class='line'>    <span class="o">}</span>
 </span><span class='line'><span class="o">}</span>
 </span></code></pre></td></tr></table></div></figure>
@@ -293,8 +293,8 @@
 </span><span class='line'>
 </span><span class='line'>    <span class="nd">@Override</span>
 </span><span class='line'>    <span class="kd">public</span> <span class="kt">boolean</span> <span class="nf">existed</span><span class="o">(</span><span class="n">String</span> <span class="n">username</span><span class="o">,</span> <span class="n">String</span> <span class="n">password</span><span class="o">)</span> <span class="o">{</span>
-</span><span class='line'>        <span class="n">User</span> <span class="n">user</span> <span class="o">=</span> <span class="n">userMapperForEncryption</span><span class="o">.</span><span class="na">selectByUsername</span><span class="o">(</span><span class="n">username</span><span class="o">);</span>
-</span><span class='line'>        <span class="k">return</span> <span class="n">user</span> <span class="o">!=</span> <span class="kc">null</span> <span class="o">&amp;&amp;</span> <span class="n">encrypt</span><span class="o">(</span><span class="n">nullToEmpty</span><span class="o">(</span><span class="n">password</span><span class="o">)).</span><span class="na">equals</span><span class="o">(</span><span class="n">user</span><span class="o">.</span><span class="na">getPassword</span><span class="o">());</span>
+</span><span class='line'>        <span class="n">User</span> <span class="n">user</span> <span class="o">=</span> <span class="n">userMapperForEncryption</span><span class="o">.</span><span class="na">selectByUsernamePassword</span><span class="o">(</span><span class="n">username</span><span class="o">,</span> <span class="n">encrypt</span><span class="o">(</span><span class="n">password</span><span class="o">));</span>
+</span><span class='line'>        <span class="k">return</span> <span class="n">user</span> <span class="o">!=</span> <span class="kc">null</span><span class="o">;</span>
 </span><span class='line'>    <span class="o">}</span>
 </span><span class='line'><span class="o">}</span>
 </span></code></pre></td></tr></table></div></figure>
