@@ -86,8 +86,8 @@ public class UserDAOImpl implements UserDAO {
 
     @Override
     public boolean existed(String username, String password) {
-        User user = userMapper.selectByUsername(username);
-        return user != null && nullToEmpty(password).equals(user.getPassword());
+        User user = userMapper.selectByUsernamePassword(username, password);
+        return user != null;
     }
 }
 {% endcodeblock %}
@@ -128,8 +128,8 @@ public class UserDAOEncryptedImpl implements UserDAO {
 
     @Override
     public boolean existed(String username, String password) {
-        User user = userMapperForEncryption.selectByUsername(username);
-        return user != null && encrypt(nullToEmpty(password)).equals(user.getPassword());
+        User user = userMapperForEncryption.selectByUsernamePassword(username, encrypt(password));
+        return user != null;
     }
 }
 {% endcodeblock %}
