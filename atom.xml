@@ -4,7 +4,7 @@
   <title><![CDATA[Yaodan's Blog]]></title>
   <link href="http://YaodanZhang.github.io/atom.xml" rel="self"/>
   <link href="http://YaodanZhang.github.io/"/>
-  <updated>2013-08-24T20:27:17+08:00</updated>
+  <updated>2013-08-24T21:13:55+08:00</updated>
   <id>http://YaodanZhang.github.io/</id>
   <author>
     <name><![CDATA[Yaodan Zhang (张耀丹)]]></name>
@@ -267,6 +267,45 @@
 </span><span class='line'>Hello Mars
 </span><span class='line'>Hello Jupiter</span></code></pre></td></tr></table></div></figure>
 
+
+<h2>默认task</h2>
+
+<p>gradle中可以定义默认的task，定义后直接使用<code>gradle</code>命令就可以执行这些task，代码如下：</p>
+
+<figure class='code'><figcaption><span>build.gradle </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class='groovy'><span class='line'><span class="n">defaultTasks</span> <span class="s1">&#39;clean&#39;</span><span class="o">,</span> <span class="s1">&#39;run&#39;</span>
+</span><span class='line'><span class="n">task</span> <span class="n">clean</span> <span class="o">&lt;&lt;</span> <span class="o">{</span>
+</span><span class='line'>    <span class="n">println</span> <span class="s1">&#39;Default Cleaning!&#39;</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'><span class="n">task</span> <span class="n">run</span> <span class="o">&lt;&lt;</span> <span class="o">{</span>
+</span><span class='line'>    <span class="n">println</span> <span class="s1">&#39;Default Running!&#39;</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'><span class="n">task</span> <span class="n">other</span> <span class="o">&lt;&lt;</span> <span class="o">{</span>
+</span><span class='line'>    <span class="n">println</span> <span class="s2">&quot;I&#39;m not a default task!&quot;</span>
+</span><span class='line'><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>执行结果如下：</p>
+
+<figure class='code'><figcaption><span>gradle -q </span></figcaption>
+<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>Default Cleaning!
+</span><span class='line'>Default Running!</span></code></pre></td></tr></table></div></figure>
+
+
+<p>在这里，执行<code>gradle</code>等价于执行<code>gradle clean run</code>。</p>
 ]]></content>
   </entry>
   
