@@ -247,7 +247,7 @@ task hello { doLast { println &# &hellip;">
 
 <p>执行结果如下：</p>
 
-<figure class='code'><figcaption><span>gradle -q intro </span></figcaption>
+<figure class='code'><figcaption><span>gradle -q task1 </span></figcaption>
 <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
 </pre></td><td class='code'><pre><code class=''><span class='line'>I'm depending number 1
@@ -288,7 +288,7 @@ task hello { doLast { println &# &hellip;">
 
 <p>执行结果如下：</p>
 
-<figure class='code'><figcaption><span>gradle -q intro </span></figcaption>
+<figure class='code'><figcaption><span>gradle -q task0 </span></figcaption>
 <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
 <span class='line-number'>3</span>
@@ -303,6 +303,47 @@ task hello { doLast { println &# &hellip;">
 </span><span class='line'>I'm task number 0</span></code></pre></td></tr></table></div></figure>
 
 
+<p>这里可以看到，Task执行的顺序是根据定义的顺序执行的，如果还有doFirst，则先执行doFirst：</p>
+
+<figure class='code'><figcaption><span>build.gradle </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class='groovy'><span class='line'><span class="n">task</span> <span class="n">hello</span> <span class="o">&lt;&lt;</span> <span class="o">{</span>
+</span><span class='line'>    <span class="n">println</span> <span class="s1">&#39;Hello Earth&#39;</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'><span class="n">hello</span><span class="o">.</span><span class="na">doFirst</span> <span class="o">{</span>
+</span><span class='line'>    <span class="n">println</span> <span class="s1">&#39;Hello Venus&#39;</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'><span class="n">hello</span><span class="o">.</span><span class="na">doLast</span> <span class="o">{</span>
+</span><span class='line'>    <span class="n">println</span> <span class="s1">&#39;Hello Mars&#39;</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'><span class="n">hello</span> <span class="o">&lt;&lt;</span> <span class="o">{</span>
+</span><span class='line'>    <span class="n">println</span> <span class="s1">&#39;Hello Jupiter&#39;</span>
+</span><span class='line'><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>执行结果如下：</p>
+
+<figure class='code'><figcaption><span>gradle -q hello </span></figcaption>
+<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>Hello Venus
+</span><span class='line'>Hello Earth
+</span><span class='line'>Hello Mars
+</span><span class='line'>Hello Jupiter</span></code></pre></td></tr></table></div></figure>
 
 </div>
 
