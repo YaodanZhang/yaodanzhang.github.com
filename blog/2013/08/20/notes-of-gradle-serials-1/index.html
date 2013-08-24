@@ -1,0 +1,443 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Gradle学习笔记-1：基础知识 - Yaodan's Blog</title>
+  <meta name="author" content="Yaodan Zhang (张耀丹)">
+
+  
+  <meta name="description" content="Hello World 在Gradle中，每一个build都由一个或多个project组成，而每一个project都由一个或多个task组成。 这是一个task的Hello World： build.gradle 1
+2
+3
+4
+5
+task hello { doLast { println &# &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://YaodanZhang.github.io/blog/2013/08/20/notes-of-gradle-serials-1">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/atom.xml" rel="alternate" title="Yaodan's Blog" type="application/atom+xml">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script>!window.jQuery && document.write(unescape('%3Cscript src="./javascripts/lib/jquery.min.js"%3E%3C/script%3E'))</script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">Yaodan's Blog</a></h1>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:YaodanZhang.github.io" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">Gradle学习笔记-1：基础知识</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-08-20T09:56:00+08:00" pubdate data-updated="true">Aug 20<span>th</span>, 2013</time>
+        
+         | <a href="#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><h2>Hello World</h2>
+
+<p>在Gradle中，每一个build都由一个或多个project组成，而每一个project都由一个或多个task组成。</p>
+
+<p>这是一个task的Hello World：</p>
+
+<figure class='code'><figcaption><span>build.gradle </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='groovy'><span class='line'><span class="n">task</span> <span class="n">hello</span> <span class="o">{</span>
+</span><span class='line'>    <span class="n">doLast</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">println</span> <span class="s1">&#39;Hello World&#39;</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<!--more -->
+
+
+<p>当执行命令：<code>gradle -q hello</code>时输出：</p>
+
+<figure class='code'><figcaption><span>gradle -q hello </span></figcaption>
+<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>Hello World</span></code></pre></td></tr></table></div></figure>
+
+
+<p>至于这个参数<code>-q</code>是什么意思，我们可以试试不加参数时的输出：</p>
+
+<figure class='code'><figcaption><span>gradle hello </span></figcaption>
+<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>:hello
+</span><span class='line'>Hello World
+</span><span class='line'>
+</span><span class='line'>BUILD SUCCESSFUL
+</span><span class='line'>
+</span><span class='line'>Total time: 1.879 secs</span></code></pre></td></tr></table></div></figure>
+
+
+<p>可以看到，<code>-q</code>的意思不显示Gradle本身的log。</p>
+
+<p>对于上面的<code>doLast</code>块，有一种简写的方式：</p>
+
+<figure class='code'><figcaption><span>build.gradle </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='groovy'><span class='line'><span class="n">task</span> <span class="n">hello</span> <span class="o">&lt;&lt;</span> <span class="o">{</span>
+</span><span class='line'>    <span class="n">println</span> <span class="s1">&#39;Hello World&#39;</span>
+</span><span class='line'><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>使用Groovy</h2>
+
+<p>在Gradle脚本中可以使用Groovy的语法，如下：</p>
+
+<figure class='code'><figcaption><span>build.gradle </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='groovy'><span class='line'><span class="n">task</span> <span class="n">upper</span> <span class="o">&lt;&lt;</span> <span class="o">{</span>
+</span><span class='line'>    <span class="n">String</span> <span class="n">someString</span> <span class="o">=</span> <span class="s1">&#39;mY_nAmE&#39;</span>
+</span><span class='line'>    <span class="n">println</span> <span class="s2">&quot;Original: &quot;</span> <span class="o">+</span> <span class="n">someString</span>
+</span><span class='line'>    <span class="n">println</span> <span class="s2">&quot;Upper case: &quot;</span> <span class="o">+</span> <span class="n">someString</span><span class="o">.</span><span class="na">toUpperCase</span><span class="o">()</span>
+</span><span class='line'><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>当执行<code>gradle -q upper</code>时，输出如下：</p>
+
+<figure class='code'><figcaption><span>gradle -q upper </span></figcaption>
+<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>Original: mY_nAmE
+</span><span class='line'>Upper case: MY_NAME</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>Task之间的依赖</h2>
+
+<figure class='code'><figcaption><span>build.gradle </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='groovy'><span class='line'><span class="n">task</span> <span class="n">hello</span> <span class="o">&lt;&lt;</span> <span class="o">{</span>
+</span><span class='line'>    <span class="n">println</span> <span class="s1">&#39;Hello world!&#39;</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">task</span> <span class="nf">intro</span><span class="o">(</span><span class="nl">dependsOn:</span> <span class="n">hello</span><span class="o">)</span> <span class="o">&lt;&lt;</span> <span class="o">{</span>
+</span><span class='line'>    <span class="n">println</span> <span class="s2">&quot;I&#39;m Gradle&quot;</span>
+</span><span class='line'><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>执行结果如下：</p>
+
+<figure class='code'><figcaption><span>gradle -q intro </span></figcaption>
+<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>Hello World
+</span><span class='line'>I'm Gradle</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>动态Task</h2>
+
+<p>在Gradle里面，Task是可以动态定义的，如下：</p>
+
+<figure class='code'><figcaption><span>build.gradle </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class='groovy'><span class='line'><span class="mi">4</span><span class="o">.</span><span class="na">times</span> <span class="o">{</span> <span class="n">counter</span> <span class="o">-&gt;</span>
+</span><span class='line'>    <span class="n">task</span> <span class="s2">&quot;task$counter&quot;</span><span class="o">(</span><span class="nl">dependsOn:</span> <span class="s2">&quot;depending$counter&quot;</span><span class="o">)</span> <span class="o">&lt;&lt;</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">println</span> <span class="s2">&quot;I&#39;m task number $counter&quot;</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="mi">4</span><span class="o">.</span><span class="na">times</span> <span class="o">{</span> <span class="n">counter</span> <span class="o">-&gt;</span>
+</span><span class='line'>    <span class="n">task</span> <span class="s2">&quot;depending$counter&quot;</span> <span class="o">&lt;&lt;</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">println</span> <span class="s2">&quot;I&#39;m depending number $counter&quot;</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>执行结果如下：</p>
+
+<figure class='code'><figcaption><span>gradle -q intro </span></figcaption>
+<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>I'm depending number 1
+</span><span class='line'>I'm task number 1</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>多次定义Task的依赖</h2>
+
+<figure class='code'><figcaption><span>build.gradle </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+</pre></td><td class='code'><pre><code class='groovy'><span class='line'><span class="mi">4</span><span class="o">.</span><span class="na">times</span> <span class="o">{</span> <span class="n">counter</span> <span class="o">-&gt;</span>
+</span><span class='line'>    <span class="n">task</span> <span class="s2">&quot;task$counter&quot;</span><span class="o">(</span><span class="nl">dependsOn:</span> <span class="s2">&quot;depending$counter&quot;</span><span class="o">)</span> <span class="o">&lt;&lt;</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">println</span> <span class="s2">&quot;I&#39;m task number $counter&quot;</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">task0</span><span class="o">.</span><span class="na">dependsOn</span> <span class="n">task1</span><span class="o">,</span> <span class="n">task2</span>
+</span><span class='line'>
+</span><span class='line'><span class="mi">4</span><span class="o">.</span><span class="na">times</span> <span class="o">{</span> <span class="n">counter</span> <span class="o">-&gt;</span>
+</span><span class='line'>    <span class="n">task</span> <span class="s2">&quot;depending$counter&quot;</span> <span class="o">&lt;&lt;</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">println</span> <span class="s2">&quot;I&#39;m depending number $counter&quot;</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>执行结果如下：</p>
+
+<figure class='code'><figcaption><span>gradle -q intro </span></figcaption>
+<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>I'm depending number 0
+</span><span class='line'>I'm depending number 1
+</span><span class='line'>I'm task number 1
+</span><span class='line'>I'm depending number 2
+</span><span class='line'>I'm task number 2
+</span><span class='line'>I'm task number 0</span></code></pre></td></tr></table></div></figure>
+
+
+
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">Yaodan Zhang (张耀丹)</span></span>
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-08-20T09:56:00+08:00" pubdate data-updated="true">Aug 20<span>th</span>, 2013</time>
+      
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/gradle/'>Gradle</a>, <a class='category' href='/blog/categories/ji-zhu-za-tan/'>技术杂谈</a>, <a class='category' href='/blog/categories/gou-jian-gong-ju/'>构建工具</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="http://twitter.com/share" class="twitter-share-button" data-url="http://YaodanZhang.github.io/blog/2013/08/20/notes-of-gradle-serials-1/" data-via="" data-counturl="http://YaodanZhang.github.io/blog/2013/08/20/notes-of-gradle-serials-1/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2013/08/19/migration-strategy-for-online-system/" title="Previous Post: 在线系统数据&服务的迁移策略">&laquo; 在线系统数据&服务的迁移策略</a>
+      
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2013/08/20/notes-of-gradle-serials-1/">Gradle学习笔记-1：基础知识</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/08/19/migration-strategy-for-online-system/">在线系统数据&服务的迁移策略</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/05/04/graduation-trip-of-6-huster/">六个人的毕业旅行</a>
+      </li>
+    
+  </ul>
+</section>
+
+
+
+
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2013 - Yaodan Zhang (张耀丹) -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'yaodansblog';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://YaodanZhang.github.io/blog/2013/08/20/notes-of-gradle-serials-1/';
+        var disqus_url = 'http://YaodanZhang.github.io/blog/2013/08/20/notes-of-gradle-serials-1/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = 'http://platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>

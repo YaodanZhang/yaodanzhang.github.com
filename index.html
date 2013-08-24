@@ -9,7 +9,12 @@
   <meta name="author" content="Yaodan Zhang (张耀丹)">
 
   
-  <meta name="description" content="当需要在正在运行的在线系统中进行数据或服务的迁移时，有很多问题需要考虑，如何设计迁移策略以保证数据正确迁移，如何处理系统间的依赖，如何保证服务持续可用等等。本文将从一个服务提供者的角度，讨论如何进行数据迁移才能保证对外提供的服务接口前后一致且持续可用，实现对于客户端的无缝迁移。 考虑一个简单的场景 &hellip;">
+  <meta name="description" content="Hello World 在Gradle中，每一个build都由一个或多个project组成，而每一个project都由一个或多个task组成。 这是一个task的Hello World： build.gradle 1
+2
+3
+4
+5
+task hello { doLast { println &# &hellip;">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -63,6 +68,69 @@
     <div id="content">
       <div class="blog-index">
   
+  
+  
+    <article>
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/2013/08/20/notes-of-gradle-serials-1/">Gradle学习笔记-1：基础知识</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-08-20T09:56:00+08:00" pubdate data-updated="true">Aug 20<span>th</span>, 2013</time>
+        
+         | <a href="/blog/2013/08/20/notes-of-gradle-serials-1/#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><h2>Hello World</h2>
+
+<p>在Gradle中，每一个build都由一个或多个project组成，而每一个project都由一个或多个task组成。</p>
+
+<p>这是一个task的Hello World：</p>
+
+<figure class='code'><figcaption><span>build.gradle </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='groovy'><span class='line'><span class="n">task</span> <span class="n">hello</span> <span class="o">{</span>
+</span><span class='line'>    <span class="n">doLast</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">println</span> <span class="s1">&#39;Hello World&#39;</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+</div>
+  
+  
+    <footer>
+      <a rel="full-article" href="/blog/2013/08/20/notes-of-gradle-serials-1/">Read on &rarr;</a>
+    </footer>
+  
+
+
+    </article>
   
   
     <article>
@@ -169,6 +237,10 @@
     <section>
   <h1>Recent Posts</h1>
   <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2013/08/20/notes-of-gradle-serials-1/">Gradle学习笔记-1：基础知识</a>
+      </li>
     
       <li class="post">
         <a href="/blog/2013/08/19/migration-strategy-for-online-system/">在线系统数据&服务的迁移策略</a>
