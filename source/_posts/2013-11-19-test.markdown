@@ -1,0 +1,29 @@
+---
+layout: post
+title: "test"
+date: 2013-11-19 17:31
+comments: true
+categories: 
+---
+night-school-container
+======================
+
+Zhengda Night School: Java container &amp; Guava
+
+
+## 需求1：显示购物车中物品的数量
+
+* #### Tag:
+    - demand-1
+
+* #### 要求:
+    - 最简单实现。
+
+## 需求2：可以想购物车中添加产品
+
+* #### Tag:
+    - demand-2
+
+* #### 要求:
+    - 用数组实现，初始化大小为10。
+    - 产品对象需要包含：产品名称
