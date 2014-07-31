@@ -1,5 +1,5 @@
 ---
-published: false
+published: true
 layout: post
 title: "如何将50行的if-else块重构成3行"
 date: 2014-07-08 10:52
@@ -434,14 +434,13 @@ private SummaryUpdateAction getSummaryUpdateAction(String requestSummaryDetail,
  
 像下面这个：
 
-def SummaryUpdateHelper.java
-    if (null == dbSummaryDetail || "".equals(dbSummaryDetail)) {
-        isDbDetailBlank = true;
-    } else {
-        isDbDetailBlank = false;
-    }
-end
-{:lang="java"}
+``` java SummaryUpdateHelper.java
+if (null == dbSummaryDetail || "".equals(dbSummaryDetail)) {
+    isDbDetailBlank = true;
+} else {
+    isDbDetailBlank = false;
+}
+```
 
 一行代码就搞定了：`isDbDetailBlank = isNullOrEmpty(dbSummaryDetail);`
 
@@ -449,4 +448,4 @@ end
 
 ### 第二步，分离关注点
 
-现在就需要动动脑筋了，首先我们可以看到
+现在就需要动动脑筋了，首先我们可以看到，在方法`getSummaryUpdateAction（）`中，
