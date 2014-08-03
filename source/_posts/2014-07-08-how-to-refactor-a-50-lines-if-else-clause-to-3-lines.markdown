@@ -332,7 +332,7 @@ private boolean shouldUpdateDetail(String requestSummaryDetail, String dbSummary
     return isDbDetailBlank || !isSame(requestSummaryDetail, dbSummaryDetail);
 }
 
-private TrustIndicator getUpdateIndicatorAction(String requestSummaryDetail, String dbSummaryDetail,
+private TrustIndicator getUpdatedIndicator(String requestSummaryDetail, String dbSummaryDetail,
                                                 TrustIndicator requestTrustIndicator,
                                                 TrustIndicator dbTrustIndicator) {
     TrustIndicator updatedIndicator = dbTrustIndicator;
@@ -362,7 +362,7 @@ private TrustIndicator getUpdateIndicatorAction(String requestSummaryDetail, Str
 
 我们看看这两个方法，可以发现他们其中的判断条件是很相似的。我们再考虑一下这两个方法的业务场景，无非就是判断是否要更新*Summary*，而如果*Summary*的*Detail*或者*Indicator*其中的任何一个更新了，另外一个最终的值肯定也是会被设为跟*Request*中的值一样的（如果*Request*中的值跟数据库中的一样，我们可以视为更新了，也可以视为没有更新）。所以我们换一种思路，不去判断是否需要更改，我们只判断最终，该请求执行完成后，*Summary*的值是否更请求的值一样即可。
 
-按照这个思路去重构，首先可以把`shouldUpdateDetail()`这个方法的行为给改掉，然后再改掉`getUpdatedIndicator()`的行为，然他们俩行为一致，最终用一个新的方法`shouldUpdate()`。下面就是最终的方法，具体的重构过程大家有兴趣可以去看我*Github*的[提交记录](https://github.com/YaodanZhang/code-kata/tree/master/src/main/java/com/thoughtworks/kata/refactor)。
+按照这个思路去重构，首先可以把`shouldUpdateDetail()`这个方法的行为给改掉，然后再改掉`getUpdatedIndicator()`的行为，让他们俩行为一致，最终用一个新的方法`shouldUpdate()`。下面就是最终的方法，具体的重构过程大家有兴趣可以去看我*Github*的[提交记录](https://github.com/YaodanZhang/code-kata/tree/master/src/main/java/com/thoughtworks/kata/refactor)。
 
 {% codeblock SummaryUpdateHelper.java https://github.com/YaodanZhang/code-kata/blob/master/src/main/java/com/thoughtworks/kata/refactor/SummaryUpdateHelper.java %}
 private boolean shouldUpdate(String requestSummaryDetail, String dbSummaryDetail,
