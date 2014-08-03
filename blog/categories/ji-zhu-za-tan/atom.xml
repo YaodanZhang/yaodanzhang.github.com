@@ -2,10 +2,10 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
 
   <title><![CDATA[Category: 技术杂谈 | Yaodan's Blog]]></title>
-  <link href="http://YaodanZhang.github.io/blog/categories/ji-zhu-za-tan/atom.xml" rel="self"/>
-  <link href="http://YaodanZhang.github.io/"/>
-  <updated>2013-08-24T21:14:30+08:00</updated>
-  <id>http://YaodanZhang.github.io/</id>
+  <link href="http://yaodanzhang.com/blog/categories/ji-zhu-za-tan/atom.xml" rel="self"/>
+  <link href="http://yaodanzhang.com/"/>
+  <updated>2014-08-03T22:18:32+08:00</updated>
+  <id>http://yaodanzhang.com/</id>
   <author>
     <name><![CDATA[Yaodan Zhang (张耀丹)]]></name>
     
@@ -14,10 +14,779 @@
 
   
   <entry>
+    <title type="html"><![CDATA[如何将50行的if-else块重构成3行]]></title>
+    <link href="http://yaodanzhang.com/blog/2014/07/08/how-to-refactor-a-50-lines-if-else-clause-to-3-lines/"/>
+    <updated>2014-07-08T10:52:00+08:00</updated>
+    <id>http://yaodanzhang.com/blog/2014/07/08/how-to-refactor-a-50-lines-if-else-clause-to-3-lines</id>
+    <content type="html"><![CDATA[<h2>背景</h2>
+
+<p>今天下午花了半天时间重构了客户遗留系统中一个<em>一万行</em>的类</p>
+
+<!--more -->
+
+
+<p>&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;-我是分割线&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;</p>
+
+<p>里面的500行代码。</p>
+
+<p>心情大好，Mark一下。</p>
+
+<h2>业务</h2>
+
+<p>我们做的是一个批发商信息管理系统，提供了一个更新批发商信息的服务，有多个别的系统可以通过调用该服务发送更新批发商信息的请求。</p>
+
+<p>在这里，批发商们有一个很重要的信息叫做公司简介（<em>Summary</em>）。</p>
+
+<p>由于很多业务上的原因（具体原因就不讨论了），其他系统发过来的更新请求有可能是不受信任的（<em>untrusted</em>），因此我们针对<em>Summary</em>添加了一个标志位，如果消息源受信任，就把它设置成<em>trusted</em>，如果不受信任，就设成<em>untrusted</em>。</p>
+
+<blockquote><p>我就这么一说，你就这么一信，这可不是我们真实的客户场景</p>
+
+<p>客户代码自然是不能传上来给大家看的啦，我已经把这里涉及到的业务场景改的面目全非了</p>
+
+<p>费了我老大的劲了</p></blockquote>
+
+<h2>新的业务</h2>
+
+<p>在这个系统运行了十年过后（你没看错，就是<em>十年</em>），客户终于发现，这里面有个Bug！！！</p>
+
+<p><em>举个栗子</em></p>
+
+<hr />
+
+<p>>> 我是一个快乐的批发商，我在一个受信任的系统中更新了我的<em>Summary</em>。</p>
+
+<p>>> 这时候，数据库里面有了我的一个<em>Summary</em>数据，这个数据是正确（<em>trusted</em>）的。</p>
+
+<p>>> 突然有一天，某个奇怪的人想通过某个不受信任的系统更新<em>我</em>的<em>Summary</em>。</p>
+
+<p>>> 当然啦，我们的系统是很人性化的，它会把这个请求标记成<em>untrusted</em>。</p>
+
+<p>>> 但是，奇怪的事情发生了，</p>
+
+<p>>> 系统用这个<em>untrusted</em>的<em>Summary</em>覆盖了我自己提交的<em>Summary</em>（天哪！！！）</p>
+
+<p>>> 又有一天，我登录系统来看我的<em>Summary</em></p>
+
+<p>>> 我不高兴了。。。。。</p>
+
+<hr />
+
+<h2>于是</h2>
+
+<p>客户找到了Dev，让我们改掉这个Bug。</p>
+
+<blockquote><p>很简单嘛， 就是不要让untrusted的信息覆盖trusted嘛，别的逻辑不变嘛</p></blockquote>
+
+<h2>如何改</h2>
+
+<p>我们说过了，这是一个<em>一万行</em>的类。</p>
+
+<blockquote><p>“你不会让我直接在里面改代码吧？”</p>
+
+<p>“当然不会啦！为了愉快的修改，我们会做足前戏的。”</p>
+
+<p>“纳尼？”</p></blockquote>
+
+<p>恩，就是下面这些工（前）作（戏）：</p>
+
+<ol>
+<li>在茫茫的代码中找到需要修改的地方，</li>
+<li>将需要修改的部分提取到一个单独的类，</li>
+<li>给他加测试，让我们的测试覆盖所有可能的情况（需要注意的是，不光要保证行覆盖率和分支覆盖率都要达到100%，而且要覆盖所有的Scenario），</li>
+<li>重构抽出来的这部分代码，让一个健康的人可以理解它，</li>
+<li>把测试改成我们现在期望的行为，</li>
+<li>最后，改掉这个Bug。</li>
+</ol>
+
+
+<p>下面，我们来演示一下。</p>
+
+<h2>找到需要修改的地方</h2>
+
+<p>（好像没什么技巧？那就略过把）</p>
+
+<h2>把找到的东西抽取出来</h2>
+
+<p>嗯，这是我们抽出来的代码：(还没开始改哦亲！)</p>
+
+<p><div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>SummaryUpdateHelper.java <a href="https://github.com/YaodanZhang/code-kata/blob/master/src/main/java/com/thoughtworks/kata/refactor/SummaryUpdateHelper.java">https://github.com/YaodanZhang/code-kata/blob/master/src/main/java/com/thoughtworks/kata/refactor/SummaryUpdateHelper.java</a> </span></figcaption>
+<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+<span class='line-number'>48</span>
+<span class='line-number'>49</span>
+<span class='line-number'>50</span>
+<span class='line-number'>51</span>
+<span class='line-number'>52</span>
+<span class='line-number'>53</span>
+<span class='line-number'>54</span>
+<span class='line-number'>55</span>
+<span class='line-number'>56</span>
+<span class='line-number'>57</span>
+<span class='line-number'>58</span>
+<span class='line-number'>59</span>
+<span class='line-number'>60</span>
+<span class='line-number'>61</span>
+<span class='line-number'>62</span>
+<span class='line-number'>63</span>
+<span class='line-number'>64</span>
+<span class='line-number'>65</span>
+<span class='line-number'>66</span>
+<span class='line-number'>67</span>
+<span class='line-number'>68</span>
+<span class='line-number'>69</span>
+<span class='line-number'>70</span>
+<span class='line-number'>71</span>
+<span class='line-number'>72</span>
+<span class='line-number'>73</span>
+<span class='line-number'>74</span>
+<span class='line-number'>75</span>
+<span class='line-number'>76</span>
+<span class='line-number'>77</span>
+<span class='line-number'>78</span>
+<span class='line-number'>79</span>
+<span class='line-number'>80</span>
+<span class='line-number'>81</span>
+<span class='line-number'>82</span>
+<span class='line-number'>83</span>
+<span class='line-number'>84</span>
+<span class='line-number'>85</span>
+<span class='line-number'>86</span>
+<span class='line-number'>87</span>
+<span class='line-number'>88</span>
+<span class='line-number'>89</span>
+<span class='line-number'>90</span>
+<span class='line-number'>91</span>
+<span class='line-number'>92</span>
+<span class='line-number'>93</span>
+<span class='line-number'>94</span>
+<span class='line-number'>95</span>
+<span class='line-number'>96</span>
+<span class='line-number'>97</span>
+<span class='line-number'>98</span>
+<span class='line-number'>99</span>
+<span class='line-number'>100</span>
+<span class='line-number'>101</span>
+<span class='line-number'>102</span>
+<span class='line-number'>103</span>
+<span class='line-number'>104</span>
+<span class='line-number'>105</span>
+<span class='line-number'>106</span>
+<span class='line-number'>107</span>
+<span class='line-number'>108</span>
+<span class='line-number'>109</span>
+<span class='line-number'>110</span>
+<span class='line-number'>111</span>
+<span class='line-number'>112</span>
+<span class='line-number'>113</span>
+<span class='line-number'>114</span>
+<span class='line-number'>115</span>
+<span class='line-number'>116</span>
+<span class='line-number'>117</span>
+<span class='line-number'>118</span>
+<span class='line-number'>119</span>
+<span class='line-number'>120</span>
+<span class='line-number'>121</span>
+<span class='line-number'>122</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="kd">public</span> <span class="kd">class</span> <span class="nc">SummaryUpdateHelper</span> <span class="o">{&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span><span class="kd">private</span> <span class="n">Map</span><span class="o">&amp;</span><span class="n">lt</span><span class="o">;</span><span class="n">String</span><span class="o">,</span> <span class="n">Object</span><span class="o">&amp;</span><span class="n">gt</span><span class="o">;</span> <span class="n">updatedFields</span><span class="o">;</span>
+</span><span class='line'>
+</span><span class='line'><span class="kd">public</span> <span class="nf">SummaryUpdateHelper</span><span class="o">(</span><span class="n">Map</span><span class="o">&amp;</span><span class="n">lt</span><span class="o">;</span><span class="n">String</span><span class="o">,</span> <span class="n">Object</span><span class="o">&amp;</span><span class="n">gt</span><span class="o">;</span> <span class="n">updatedFields</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>    <span class="k">this</span><span class="o">.</span><span class="na">updatedFields</span> <span class="o">=</span> <span class="n">updatedFields</span><span class="o">;</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="kd">public</span> <span class="kt">void</span> <span class="nf">updateSummary</span><span class="o">(</span><span class="n">Request</span> <span class="n">request</span><span class="o">,</span> <span class="n">Customer</span> <span class="n">customer</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>    <span class="n">RequestSummary</span> <span class="n">requestSummary</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="na">getSummary</span><span class="o">();</span>
+</span><span class='line'>    <span class="n">Summary</span> <span class="n">summaryFromDb</span> <span class="o">=</span> <span class="n">customer</span><span class="o">.</span><span class="na">getSummary</span><span class="o">();</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">if</span> <span class="o">(</span><span class="n">summaryFromDb</span> <span class="o">==</span> <span class="kc">null</span> <span class="o">&amp;</span><span class="n">amp</span><span class="o">;&amp;</span><span class="n">amp</span><span class="o">;</span> <span class="n">requestSummary</span> <span class="o">!=</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">summaryFromDb</span> <span class="o">=</span> <span class="k">new</span> <span class="n">Summary</span><span class="o">();</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">if</span> <span class="o">(</span><span class="kc">null</span> <span class="o">!=</span> <span class="n">requestSummary</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">updateSummaryAttributes</span><span class="o">(</span><span class="n">requestSummary</span><span class="o">,</span> <span class="n">summaryFromDb</span><span class="o">);</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>    <span class="k">if</span> <span class="o">(</span><span class="n">updatedFields</span><span class="o">.</span><span class="na">containsKey</span><span class="o">(</span><span class="s">&quot;summary&quot;</span><span class="o">))</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">customer</span><span class="o">.</span><span class="na">setSummary</span><span class="o">(</span><span class="n">summaryFromDb</span><span class="o">);</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="kd">private</span> <span class="kt">void</span> <span class="nf">updateSummaryAttributes</span><span class="o">(</span><span class="n">RequestSummary</span> <span class="n">requestSummary</span><span class="o">,</span> <span class="n">Summary</span> <span class="n">dbSummary</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>    <span class="n">String</span> <span class="n">requestSummaryDetail</span> <span class="o">=</span> <span class="n">requestSummary</span><span class="o">.</span><span class="na">getSummaryDetail</span><span class="o">();</span>
+</span><span class='line'>    <span class="n">TrustIndicator</span> <span class="n">requestTrustIndicator</span> <span class="o">=</span> <span class="n">requestSummary</span><span class="o">.</span><span class="na">getTrustIndicator</span><span class="o">();</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">String</span> <span class="n">dbSummaryDetail</span> <span class="o">=</span> <span class="n">dbSummary</span><span class="o">.</span><span class="na">getDetail</span><span class="o">();</span>
+</span><span class='line'>    <span class="n">TrustIndicator</span> <span class="n">dbTrustIndicator</span> <span class="o">=</span> <span class="n">dbSummary</span><span class="o">.</span><span class="na">getTrustIndicator</span><span class="o">();</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">UpdateAction</span> <span class="n">updateAction</span> <span class="o">=</span> <span class="n">getUpdateAction</span><span class="o">(</span><span class="n">requestSummaryDetail</span><span class="o">,</span>
+</span><span class='line'>            <span class="n">dbSummaryDetail</span><span class="o">,</span> <span class="n">requestTrustIndicator</span><span class="o">,</span> <span class="n">dbTrustIndicator</span><span class="o">);</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">if</span> <span class="o">(</span><span class="n">updateAction</span><span class="o">.</span><span class="na">updateDetail</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">dbSummary</span><span class="o">.</span><span class="na">setDetail</span><span class="o">(</span><span class="n">trimToNull</span><span class="o">(</span><span class="n">requestSummaryDetail</span><span class="o">));</span>
+</span><span class='line'>        <span class="n">updatedFields</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="s">&quot;summary&quot;</span><span class="o">,</span> <span class="n">dbSummary</span><span class="o">);</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">dbSummary</span><span class="o">.</span><span class="na">setTrustIndicator</span><span class="o">(</span><span class="n">updateAction</span><span class="o">.</span><span class="na">updatedTrustIndicator</span><span class="o">);</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">if</span> <span class="o">(</span><span class="n">updateAction</span><span class="o">.</span><span class="na">updatedTrustIndicator</span> <span class="o">!=</span> <span class="n">dbTrustIndicator</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">updatedFields</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="s">&quot;summary&quot;</span><span class="o">,</span> <span class="n">dbSummary</span><span class="o">);</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="kd">private</span> <span class="n">UpdateAction</span> <span class="nf">getUpdateAction</span><span class="o">(</span><span class="n">String</span> <span class="n">requestSummaryDetail</span><span class="o">,</span> <span class="n">String</span> <span class="n">dbSummaryDetail</span><span class="o">,</span>
+</span><span class='line'>                                     <span class="n">TrustIndicator</span> <span class="n">requestTrustIndicator</span><span class="o">,</span>
+</span><span class='line'>                                     <span class="n">TrustIndicator</span> <span class="n">dbTrustIndicator</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>    <span class="n">UpdateAction</span> <span class="n">updateAction</span><span class="o">;</span>
+</span><span class='line'>    <span class="kt">boolean</span> <span class="n">isRequestDetailBlank</span><span class="o">;</span>
+</span><span class='line'>    <span class="kt">boolean</span> <span class="n">isDbDetailBlank</span><span class="o">;</span>
+</span><span class='line'>    <span class="kt">boolean</span> <span class="n">isRequestAndDbDetailSame</span><span class="o">;</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">updateAction</span> <span class="o">=</span> <span class="k">new</span> <span class="n">UpdateAction</span><span class="o">();</span>
+</span><span class='line'>    <span class="n">updateAction</span><span class="o">.</span><span class="na">updatedTrustIndicator</span> <span class="o">=</span> <span class="n">dbTrustIndicator</span><span class="o">;</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">if</span> <span class="o">(</span><span class="kc">null</span> <span class="o">==</span> <span class="n">dbSummaryDetail</span> <span class="o">||</span> <span class="s">&quot;&quot;</span><span class="o">.</span><span class="na">equals</span><span class="o">(</span><span class="n">dbSummaryDetail</span><span class="o">))</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">isDbDetailBlank</span> <span class="o">=</span> <span class="kc">true</span><span class="o">;</span>
+</span><span class='line'>    <span class="o">}</span> <span class="k">else</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">isDbDetailBlank</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">if</span> <span class="o">(</span><span class="kc">null</span> <span class="o">==</span> <span class="n">requestSummaryDetail</span> <span class="o">||</span> <span class="s">&quot;&quot;</span><span class="o">.</span><span class="na">equals</span><span class="o">(</span><span class="n">requestSummaryDetail</span><span class="o">))</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">isRequestDetailBlank</span> <span class="o">=</span> <span class="kc">true</span><span class="o">;</span>
+</span><span class='line'>    <span class="o">}</span> <span class="k">else</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">isRequestDetailBlank</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">if</span> <span class="o">(</span><span class="kc">null</span> <span class="o">!=</span> <span class="n">requestSummaryDetail</span> <span class="o">&amp;</span><span class="n">amp</span><span class="o">;&amp;</span><span class="n">amp</span><span class="o">;</span> <span class="kc">null</span> <span class="o">!=</span> <span class="n">dbSummaryDetail</span>
+</span><span class='line'>            <span class="o">&amp;</span><span class="n">amp</span><span class="o">;&amp;</span><span class="n">amp</span><span class="o">;</span> <span class="n">requestSummaryDetail</span><span class="o">.</span><span class="na">equalsIgnoreCase</span><span class="o">(</span><span class="n">dbSummaryDetail</span><span class="o">))</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">isRequestAndDbDetailSame</span> <span class="o">=</span> <span class="kc">true</span><span class="o">;</span>
+</span><span class='line'>    <span class="o">}</span> <span class="k">else</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">isRequestAndDbDetailSame</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">if</span> <span class="o">(</span><span class="n">isRequestDetailBlank</span> <span class="o">&amp;</span><span class="n">amp</span><span class="o">;&amp;</span><span class="n">amp</span><span class="o">;</span> <span class="o">!</span><span class="n">isDbDetailBlank</span> <span class="o">&amp;</span><span class="n">amp</span><span class="o">;&amp;</span><span class="n">amp</span><span class="o">;</span> <span class="n">TRUSTED</span> <span class="o">==</span> <span class="n">requestTrustIndicator</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="k">if</span> <span class="o">(</span><span class="n">TRUSTED</span> <span class="o">==</span> <span class="n">dbTrustIndicator</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>            <span class="n">updateAction</span><span class="o">.</span><span class="na">updateDetail</span> <span class="o">=</span> <span class="kc">true</span><span class="o">;</span>
+</span><span class='line'>        <span class="o">}</span> <span class="k">else</span> <span class="k">if</span> <span class="o">(</span><span class="n">UNTRUSTED</span> <span class="o">==</span> <span class="n">dbTrustIndicator</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>            <span class="n">updateAction</span><span class="o">.</span><span class="na">updateDetail</span> <span class="o">=</span> <span class="kc">true</span><span class="o">;</span>
+</span><span class='line'>            <span class="n">updateAction</span><span class="o">.</span><span class="na">updatedTrustIndicator</span> <span class="o">=</span> <span class="n">TRUSTED</span><span class="o">;</span>
+</span><span class='line'>        <span class="o">}</span>
+</span><span class='line'>    <span class="o">}</span> <span class="k">else</span> <span class="k">if</span> <span class="o">(!</span><span class="n">isRequestDetailBlank</span> <span class="o">&amp;</span><span class="n">amp</span><span class="o">;&amp;</span><span class="n">amp</span><span class="o">;</span> <span class="n">isDbDetailBlank</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">updateAction</span><span class="o">.</span><span class="na">updateDetail</span> <span class="o">=</span> <span class="kc">true</span><span class="o">;</span>
+</span><span class='line'>        <span class="n">updateAction</span><span class="o">.</span><span class="na">updatedTrustIndicator</span> <span class="o">=</span> <span class="n">requestTrustIndicator</span><span class="o">;</span>
+</span><span class='line'>    <span class="o">}</span> <span class="k">else</span> <span class="k">if</span> <span class="o">(!</span><span class="n">isRequestDetailBlank</span> <span class="o">&amp;</span><span class="n">amp</span><span class="o">;&amp;</span><span class="n">amp</span><span class="o">;</span> <span class="o">!</span><span class="n">isDbDetailBlank</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="k">if</span> <span class="o">(</span><span class="n">TRUSTED</span> <span class="o">==</span> <span class="n">dbTrustIndicator</span> <span class="o">&amp;</span><span class="n">amp</span><span class="o">;&amp;</span><span class="n">amp</span><span class="o">;</span> <span class="n">TRUSTED</span> <span class="o">==</span> <span class="n">requestTrustIndicator</span>
+</span><span class='line'>                <span class="o">&amp;</span><span class="n">amp</span><span class="o">;&amp;</span><span class="n">amp</span><span class="o">;</span> <span class="o">!</span><span class="n">isRequestAndDbDetailSame</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>            <span class="n">updateAction</span><span class="o">.</span><span class="na">updateDetail</span> <span class="o">=</span> <span class="kc">true</span><span class="o">;</span>
+</span><span class='line'>        <span class="o">}</span> <span class="k">else</span> <span class="k">if</span> <span class="o">(</span><span class="n">UNTRUSTED</span> <span class="o">==</span> <span class="n">dbTrustIndicator</span> <span class="o">&amp;</span><span class="n">amp</span><span class="o">;&amp;</span><span class="n">amp</span><span class="o">;</span> <span class="n">TRUSTED</span> <span class="o">==</span> <span class="n">requestTrustIndicator</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>            <span class="n">updateAction</span><span class="o">.</span><span class="na">updatedTrustIndicator</span> <span class="o">=</span> <span class="n">TRUSTED</span><span class="o">;</span>
+</span><span class='line'>            <span class="k">if</span> <span class="o">(!</span><span class="n">isRequestAndDbDetailSame</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>                <span class="n">updateAction</span><span class="o">.</span><span class="na">updateDetail</span> <span class="o">=</span> <span class="kc">true</span><span class="o">;</span>
+</span><span class='line'>            <span class="o">}</span>
+</span><span class='line'>        <span class="o">}</span> <span class="k">else</span> <span class="k">if</span> <span class="o">(</span><span class="n">UNTRUSTED</span> <span class="o">==</span> <span class="n">dbTrustIndicator</span> <span class="o">&amp;</span><span class="n">amp</span><span class="o">;&amp;</span><span class="n">amp</span><span class="o">;</span> <span class="n">UNTRUSTED</span> <span class="o">==</span> <span class="n">requestTrustIndicator</span>
+</span><span class='line'>                <span class="o">&amp;</span><span class="n">amp</span><span class="o">;&amp;</span><span class="n">amp</span><span class="o">;</span> <span class="o">!</span><span class="n">isRequestAndDbDetailSame</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>            <span class="n">updateAction</span><span class="o">.</span><span class="na">updateDetail</span> <span class="o">=</span> <span class="kc">true</span><span class="o">;</span>
+</span><span class='line'>        <span class="o">}</span> <span class="k">else</span> <span class="k">if</span> <span class="o">(</span><span class="n">TRUSTED</span> <span class="o">==</span> <span class="n">dbTrustIndicator</span> <span class="o">&amp;</span><span class="n">amp</span><span class="o">;&amp;</span><span class="n">amp</span><span class="o">;</span> <span class="n">UNTRUSTED</span> <span class="o">==</span> <span class="n">requestTrustIndicator</span>
+</span><span class='line'>                <span class="o">&amp;</span><span class="n">amp</span><span class="o">;&amp;</span><span class="n">amp</span><span class="o">;</span> <span class="o">!</span><span class="n">isRequestAndDbDetailSame</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>            <span class="n">updateAction</span><span class="o">.</span><span class="na">updateDetail</span> <span class="o">=</span> <span class="kc">true</span><span class="o">;</span>
+</span><span class='line'>            <span class="n">updateAction</span><span class="o">.</span><span class="na">updatedTrustIndicator</span> <span class="o">=</span> <span class="n">UNTRUSTED</span><span class="o">;</span>
+</span><span class='line'>        <span class="o">}</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>    <span class="k">return</span> <span class="n">updateAction</span><span class="o">;</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="kd">private</span> <span class="kd">static</span> <span class="n">String</span> <span class="nf">trimToNull</span><span class="o">(</span><span class="n">String</span> <span class="n">target</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>    <span class="k">if</span> <span class="o">(</span><span class="n">target</span> <span class="o">==</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="k">return</span> <span class="kc">null</span><span class="o">;</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>    <span class="n">String</span> <span class="n">trimmed</span> <span class="o">=</span> <span class="n">target</span><span class="o">.</span><span class="na">trim</span><span class="o">();</span>
+</span><span class='line'>    <span class="k">return</span> <span class="s">&quot;&quot;</span><span class="o">.</span><span class="na">equals</span><span class="o">(</span><span class="n">trimmed</span><span class="o">)</span> <span class="o">?</span> <span class="kc">null</span> <span class="o">:</span> <span class="n">trimmed</span><span class="o">;</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="kd">private</span> <span class="kd">class</span> <span class="nc">UpdateAction</span> <span class="o">{</span>
+</span><span class='line'>    <span class="kd">public</span> <span class="kt">boolean</span> <span class="n">updateDetail</span><span class="o">;</span>
+</span><span class='line'>    <span class="kd">public</span> <span class="n">TrustIndicator</span> <span class="n">updatedTrustIndicator</span><span class="o">;</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+
+<h2>加测试</h2>
+
+<p>我们用Spock写了一个很<em>性感</em>的测试：（实际情况是，用jUnit写出来的测试实在是看不懂，木有办法了才用这个。。。。。。）</p>
+
+<p><div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>SummaryUpdateHelperTest.groovy <a href="https://github.com/YaodanZhang/code-kata/blob/master/src/test/groovy/com/thoughtworks/kata/refactor/SummaryUpdateHelperTest.groovy">https://github.com/YaodanZhang/code-kata/blob/master/src/test/groovy/com/thoughtworks/kata/refactor/SummaryUpdateHelperTest.groovy</a> </span></figcaption>
+<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+</pre></td><td class='code'><pre><code class='groovy'><span class='line'><span class="kd">class</span> <span class="nc">SummaryUpdateHelperTest</span> <span class="kd">extends</span> <span class="n">Specification</span> <span class="o">{&lt;</span><span class="s">/p&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="s">&lt;pre&gt;&lt;code&gt;@Unroll</span>
+</span><span class='line'><span class="s">def &quot;request[#requestSummary, #requestTrust] update db[#dbSummary, #dbTrust] = [#finalSummary, #finalTrust]&quot;() {</span>
+</span><span class='line'><span class="s">    given:</span>
+</span><span class='line'><span class="s">    def helper = new SummaryUpdateHelper(newHashMap())</span>
+</span><span class='line'><span class="s">    def request = createRequest(requestSummary, requestTrust)</span>
+</span><span class='line'><span class="s">    def customer = createCustomer(dbSummary, dbTrust)</span>
+</span><span class='line'>
+</span><span class='line'><span class="s">    when:</span>
+</span><span class='line'><span class="s">    helper.updateSummary(request, customer)</span>
+</span><span class='line'>
+</span><span class='line'><span class="s">    then:</span>
+</span><span class='line'><span class="s">    customer.summary == createSummary(finalSummary, finalTrust)</span>
+</span><span class='line'>
+</span><span class='line'><span class="s">    where:</span>
+</span><span class='line'><span class="s">    requestSummary | requestTrust | dbSummary | dbTrust   | finalSummary | finalTrust</span>
+</span><span class='line'><span class="s">    null           | null         | null      | null      | null         | null</span>
+</span><span class='line'>
+</span><span class='line'><span class="s">    BLANK          | TRUSTED      | null      | null      | null         | null</span>
+</span><span class='line'>
+</span><span class='line'><span class="s">    /</span><span class="o">********************************</span><span class="err">这里省掉</span><span class="mi">58</span><span class="err">个测试用例</span><span class="o">*********************************</span><span class="s">/</span>
+</span><span class='line'>
+</span><span class='line'><span class="s">    UPDATED        | UNTRUSTED    | ORIGINAL  | UNTRUSTED | UPDATED      | UNTRUSTED</span>
+</span><span class='line'><span class="s">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="s">/</span><span class="o">*************************************</span><span class="err">下面的不重要</span><span class="o">**************************************</span><span class="s">/</span>
+</span><span class='line'><span class="s">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+
+<h2>重构</h2>
+
+<p>接下来，就是要做重构了。</p>
+
+<p>在第一段代码中，我们一眼就能看到，这里面有一个很销魂的方法：<code>getUpdateAction()</code>。别的就略过啦，今天我们就来看看如何重构这个方法。</p>
+
+<h3>1. 干掉里面最二的代码</h3>
+
+<p>像下面这个：</p>
+
+<p>``` java SummaryUpdateHelper.java
+if (null == dbSummaryDetail || &ldquo;&rdquo;.equals(dbSummaryDetail)) {</p>
+
+<pre><code>isDbDetailBlank = true;
+</code></pre>
+
+<p>} else {</p>
+
+<pre><code>isDbDetailBlank = false;
+</code></pre>
+
+<p>}
+```</p>
+
+<p>一行代码就搞定了：<code>isDbDetailBlank = isNullOrEmpty(dbSummaryDetail);</code></p>
+
+<p>简单来说，这一步完成过后，IDE里面就不会出现警告了。</p>
+
+<h3>2. 分离关注点</h3>
+
+<p>现在就需要动动脑筋了，首先我们可以看到，在方法<code>getUpdateAction()</code>中，他是把判断是否更新<em>Detail</em>和<em>Indicator</em>搅在一起了，想一次解决两个问题。但奇怪的是对于<em>Detail</em>，他返回的是是否需要更新；对于<em>Indicator</em>，他返回的是更新后的值。。。。。</p>
+
+<p>我们可以首先把<em>Detail</em>和<em>Indicator</em>的判断分开。分开过后，我们就可以发现，以前专门用来保存<em>Detail</em>和<em>Indicator</em>的类<code>UpdateAction</code>就没有用了。我们先来看看抽出来后单独判断更新后的<em>Detail</em>的方法，关于<em>Indicator</em>的判断大家自己脑补。</p>
+
+<p><div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>SummaryUpdateHelper.java <a href="https://github.com/YaodanZhang/code-kata/blob/master/src/main/java/com/thoughtworks/kata/refactor/SummaryUpdateHelper.java">https://github.com/YaodanZhang/code-kata/blob/master/src/main/java/com/thoughtworks/kata/refactor/SummaryUpdateHelper.java</a> </span></figcaption>
+<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="kd">private</span> <span class="kt">boolean</span> <span class="nf">shouldUpdateDetail</span><span class="o">(</span><span class="n">String</span> <span class="n">requestSummaryDetail</span><span class="o">,</span> <span class="n">String</span> <span class="n">dbSummaryDetail</span><span class="o">,&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span>                               <span class="n">TrustIndicator</span> <span class="n">requestTrustIndicator</span><span class="o">,</span>
+</span><span class='line'>                               <span class="n">TrustIndicator</span> <span class="n">dbTrustIndicator</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'><span class="kt">boolean</span> <span class="n">isDbDetailBlank</span> <span class="o">=</span> <span class="n">isNullOrEmpty</span><span class="o">(</span><span class="n">dbSummaryDetail</span><span class="o">);</span>
+</span><span class='line'><span class="kt">boolean</span> <span class="n">isRequestDetailBlank</span> <span class="o">=</span> <span class="n">isNullOrEmpty</span><span class="o">(</span><span class="n">requestSummaryDetail</span><span class="o">);</span>
+</span><span class='line'><span class="kt">boolean</span> <span class="n">isRequestAndDbDetailSame</span> <span class="o">=</span> <span class="n">isSame</span><span class="o">(</span><span class="n">requestSummaryDetail</span><span class="o">,</span> <span class="n">dbSummaryDetail</span><span class="o">);</span>
+</span><span class='line'>
+</span><span class='line'><span class="kt">boolean</span> <span class="n">shouldUpdateDetail</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
+</span><span class='line'><span class="k">if</span> <span class="o">(</span><span class="n">isRequestDetailBlank</span> <span class="o">&amp;</span><span class="n">amp</span><span class="o">;&amp;</span><span class="n">amp</span><span class="o">;</span> <span class="o">!</span><span class="n">isDbDetailBlank</span> <span class="o">&amp;</span><span class="n">amp</span><span class="o">;&amp;</span><span class="n">amp</span><span class="o">;</span> <span class="n">TRUSTED</span> <span class="o">==</span> <span class="n">requestTrustIndicator</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>    <span class="k">if</span> <span class="o">(</span><span class="n">TRUSTED</span> <span class="o">==</span> <span class="n">dbTrustIndicator</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">shouldUpdateDetail</span> <span class="o">=</span> <span class="kc">true</span><span class="o">;</span>
+</span><span class='line'>    <span class="o">}</span> <span class="k">else</span> <span class="k">if</span> <span class="o">(</span><span class="n">UNTRUSTED</span> <span class="o">==</span> <span class="n">dbTrustIndicator</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">shouldUpdateDetail</span> <span class="o">=</span> <span class="kc">true</span><span class="o">;</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'><span class="o">}</span> <span class="k">else</span> <span class="k">if</span> <span class="o">(!</span><span class="n">isRequestDetailBlank</span> <span class="o">&amp;</span><span class="n">amp</span><span class="o">;&amp;</span><span class="n">amp</span><span class="o">;</span> <span class="n">isDbDetailBlank</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>    <span class="n">shouldUpdateDetail</span> <span class="o">=</span> <span class="kc">true</span><span class="o">;</span>
+</span><span class='line'><span class="o">}</span> <span class="k">else</span> <span class="k">if</span> <span class="o">(!</span><span class="n">isRequestDetailBlank</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>    <span class="k">if</span> <span class="o">(</span><span class="n">TRUSTED</span> <span class="o">==</span> <span class="n">dbTrustIndicator</span> <span class="o">&amp;</span><span class="n">amp</span><span class="o">;&amp;</span><span class="n">amp</span><span class="o">;</span> <span class="n">TRUSTED</span> <span class="o">==</span> <span class="n">requestTrustIndicator</span>
+</span><span class='line'>            <span class="o">&amp;</span><span class="n">amp</span><span class="o">;&amp;</span><span class="n">amp</span><span class="o">;</span> <span class="o">!</span><span class="n">isRequestAndDbDetailSame</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">shouldUpdateDetail</span> <span class="o">=</span> <span class="kc">true</span><span class="o">;</span>
+</span><span class='line'>    <span class="o">}</span> <span class="k">else</span> <span class="k">if</span> <span class="o">(</span><span class="n">UNTRUSTED</span> <span class="o">==</span> <span class="n">dbTrustIndicator</span> <span class="o">&amp;</span><span class="n">amp</span><span class="o">;&amp;</span><span class="n">amp</span><span class="o">;</span> <span class="n">TRUSTED</span> <span class="o">==</span> <span class="n">requestTrustIndicator</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="k">if</span> <span class="o">(!</span><span class="n">isRequestAndDbDetailSame</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>            <span class="n">shouldUpdateDetail</span> <span class="o">=</span> <span class="kc">true</span><span class="o">;</span>
+</span><span class='line'>        <span class="o">}</span>
+</span><span class='line'>    <span class="o">}</span> <span class="k">else</span> <span class="k">if</span> <span class="o">(</span><span class="n">UNTRUSTED</span> <span class="o">==</span> <span class="n">dbTrustIndicator</span> <span class="o">&amp;</span><span class="n">amp</span><span class="o">;&amp;</span><span class="n">amp</span><span class="o">;</span> <span class="n">UNTRUSTED</span> <span class="o">==</span> <span class="n">requestTrustIndicator</span>
+</span><span class='line'>            <span class="o">&amp;</span><span class="n">amp</span><span class="o">;&amp;</span><span class="n">amp</span><span class="o">;</span> <span class="o">!</span><span class="n">isRequestAndDbDetailSame</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">shouldUpdateDetail</span> <span class="o">=</span> <span class="kc">true</span><span class="o">;</span>
+</span><span class='line'>    <span class="o">}</span> <span class="k">else</span> <span class="k">if</span> <span class="o">(</span><span class="n">TRUSTED</span> <span class="o">==</span> <span class="n">dbTrustIndicator</span> <span class="o">&amp;</span><span class="n">amp</span><span class="o">;&amp;</span><span class="n">amp</span><span class="o">;</span> <span class="n">UNTRUSTED</span> <span class="o">==</span> <span class="n">requestTrustIndicator</span>
+</span><span class='line'>            <span class="o">&amp;</span><span class="n">amp</span><span class="o">;&amp;</span><span class="n">amp</span><span class="o">;</span> <span class="o">!</span><span class="n">isRequestAndDbDetailSame</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">shouldUpdateDetail</span> <span class="o">=</span> <span class="kc">true</span><span class="o">;</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'><span class="k">return</span> <span class="n">shouldUpdateDetail</span><span class="o">;</span>
+</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+
+<h3>3. 重新理一下判断条件</h3>
+
+<p>从上面这个方法我们可以看到，他的逻辑判断也是很<em>二</em>的，很多分支可以合并或者简化，这一步就做这个事情。具体的过程就不一步一步的演示了，有兴趣的童鞋可以去看看我<em>Github</em>的<a href="https://github.com/YaodanZhang/code-kata/tree/master/src/main/java/com/thoughtworks/kata/refactor">提交记录</a>。</p>
+
+<p><div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>SummaryUpdateHelper.java <a href="https://github.com/YaodanZhang/code-kata/blob/master/src/main/java/com/thoughtworks/kata/refactor/SummaryUpdateHelper.java">https://github.com/YaodanZhang/code-kata/blob/master/src/main/java/com/thoughtworks/kata/refactor/SummaryUpdateHelper.java</a> </span></figcaption>
+<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="kd">private</span> <span class="kt">boolean</span> <span class="nf">shouldUpdateDetail</span><span class="o">(</span><span class="n">String</span> <span class="n">requestSummaryDetail</span><span class="o">,</span> <span class="n">String</span> <span class="n">dbSummaryDetail</span><span class="o">,&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span>                               <span class="n">TrustIndicator</span> <span class="n">requestTrustIndicator</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'><span class="kt">boolean</span> <span class="n">isDbDetailBlank</span> <span class="o">=</span> <span class="n">isNullOrEmpty</span><span class="o">(</span><span class="n">dbSummaryDetail</span><span class="o">);</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">if</span> <span class="o">(</span><span class="n">isNullOrEmpty</span><span class="o">(</span><span class="n">requestSummaryDetail</span><span class="o">))</span> <span class="o">{</span>
+</span><span class='line'>    <span class="k">return</span> <span class="o">!</span><span class="n">isDbDetailBlank</span> <span class="o">&amp;</span><span class="n">amp</span><span class="o">;&amp;</span><span class="n">amp</span><span class="o">;</span> <span class="n">TRUSTED</span> <span class="o">==</span> <span class="n">requestTrustIndicator</span><span class="o">;</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">return</span> <span class="n">isDbDetailBlank</span> <span class="o">||</span> <span class="o">!</span><span class="n">isSame</span><span class="o">(</span><span class="n">requestSummaryDetail</span><span class="o">,</span> <span class="n">dbSummaryDetail</span><span class="o">);</span>
+</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;}&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="kd">private</span> <span class="n">TrustIndicator</span> <span class="n">getUpdateIndicatorAction</span><span class="o">(</span><span class="n">String</span> <span class="n">requestSummaryDetail</span><span class="o">,</span> <span class="n">String</span> <span class="n">dbSummaryDetail</span><span class="o">,&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span>                                            <span class="n">TrustIndicator</span> <span class="n">requestTrustIndicator</span><span class="o">,</span>
+</span><span class='line'>                                            <span class="n">TrustIndicator</span> <span class="n">dbTrustIndicator</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'><span class="n">TrustIndicator</span> <span class="n">updatedIndicator</span> <span class="o">=</span> <span class="n">dbTrustIndicator</span><span class="o">;</span>
+</span><span class='line'>
+</span><span class='line'><span class="kt">boolean</span> <span class="n">isDbDetailBlank</span> <span class="o">=</span> <span class="n">isNullOrEmpty</span><span class="o">(</span><span class="n">dbSummaryDetail</span><span class="o">);</span>
+</span><span class='line'><span class="kt">boolean</span> <span class="n">isRequestDetailBlank</span> <span class="o">=</span> <span class="n">isNullOrEmpty</span><span class="o">(</span><span class="n">requestSummaryDetail</span><span class="o">);</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">if</span> <span class="o">(</span><span class="n">isRequestDetailBlank</span> <span class="o">&amp;</span><span class="n">amp</span><span class="o">;&amp;</span><span class="n">amp</span><span class="o">;</span> <span class="o">!</span><span class="n">isDbDetailBlank</span> <span class="o">&amp;</span><span class="n">amp</span><span class="o">;&amp;</span><span class="n">amp</span><span class="o">;</span> <span class="n">TRUSTED</span> <span class="o">==</span> <span class="n">requestTrustIndicator</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>    <span class="n">updatedIndicator</span> <span class="o">=</span> <span class="n">requestTrustIndicator</span><span class="o">;</span>
+</span><span class='line'><span class="o">}</span> <span class="k">else</span> <span class="k">if</span> <span class="o">(!</span><span class="n">isRequestDetailBlank</span> <span class="o">&amp;</span><span class="n">amp</span><span class="o">;&amp;</span><span class="n">amp</span><span class="o">;</span> <span class="n">isDbDetailBlank</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>    <span class="n">updatedIndicator</span> <span class="o">=</span> <span class="n">requestTrustIndicator</span><span class="o">;</span>
+</span><span class='line'><span class="o">}</span> <span class="k">else</span> <span class="k">if</span> <span class="o">(!</span><span class="n">isRequestDetailBlank</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>    <span class="k">if</span> <span class="o">(</span><span class="n">TRUSTED</span> <span class="o">==</span> <span class="n">requestTrustIndicator</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">updatedIndicator</span> <span class="o">=</span> <span class="n">requestTrustIndicator</span><span class="o">;</span>
+</span><span class='line'>    <span class="o">}</span> <span class="k">else</span> <span class="k">if</span> <span class="o">(</span><span class="n">UNTRUSTED</span> <span class="o">==</span> <span class="n">requestTrustIndicator</span>
+</span><span class='line'>            <span class="o">&amp;</span><span class="n">amp</span><span class="o">;&amp;</span><span class="n">amp</span><span class="o">;</span> <span class="o">!</span><span class="n">isSame</span><span class="o">(</span><span class="n">requestSummaryDetail</span><span class="o">,</span> <span class="n">dbSummaryDetail</span><span class="o">))</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">updatedIndicator</span> <span class="o">=</span> <span class="n">requestTrustIndicator</span><span class="o">;</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'><span class="k">return</span> <span class="n">updatedIndicator</span><span class="o">;</span>
+</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+
+<p>有没有感觉瞬间清爽了不少？</p>
+
+<h3>4. 换一种思路去处理更新请求</h3>
+
+<p>我们看看这两个方法，可以发现他们其中的判断条件是很相似的。我们再考虑一下这两个方法的业务场景，无非就是判断是否要更新<em>Summary</em>，而如果<em>Summary</em>的<em>Detail</em>或者<em>Indicator</em>其中的任何一个更新了，另外一个最终的值肯定也是会被设为跟<em>Request</em>中的值一样的（如果<em>Request</em>中的值跟数据库中的一样，我们可以视为更新了，也可以视为没有更新）。所以我们换一种思路，不去判断是否需要更改，我们只判断最终，该请求执行完成后，<em>Summary</em>的值是否更请求的值一样即可。</p>
+
+<p>按照这个思路去重构，首先可以把<code>shouldUpdateDetail()</code>这个方法的行为给改掉，然后再改掉<code>getUpdatedIndicator()</code>的行为，然他们俩行为一致，最终用一个新的方法<code>shouldUpdate()</code>。下面就是最终的方法，具体的重构过程大家有兴趣可以去看我<em>Github</em>的<a href="https://github.com/YaodanZhang/code-kata/tree/master/src/main/java/com/thoughtworks/kata/refactor">提交记录</a>。</p>
+
+<p><div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>SummaryUpdateHelper.java <a href="https://github.com/YaodanZhang/code-kata/blob/master/src/main/java/com/thoughtworks/kata/refactor/SummaryUpdateHelper.java">https://github.com/YaodanZhang/code-kata/blob/master/src/main/java/com/thoughtworks/kata/refactor/SummaryUpdateHelper.java</a> </span></figcaption>
+<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="kd">private</span> <span class="kt">boolean</span> <span class="nf">shouldUpdate</span><span class="o">(</span><span class="n">String</span> <span class="n">requestSummaryDetail</span><span class="o">,</span> <span class="n">String</span> <span class="n">dbSummaryDetail</span><span class="o">,&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span>                         <span class="n">TrustIndicator</span> <span class="n">requestTrustIndicator</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'><span class="kt">boolean</span> <span class="n">isDbDetailBlank</span> <span class="o">=</span> <span class="n">isNullOrEmpty</span><span class="o">(</span><span class="n">dbSummaryDetail</span><span class="o">);</span>
+</span><span class='line'><span class="kt">boolean</span> <span class="n">isRequestDetailBlank</span> <span class="o">=</span> <span class="n">isNullOrEmpty</span><span class="o">(</span><span class="n">requestSummaryDetail</span><span class="o">);</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">if</span> <span class="o">(</span><span class="n">isRequestDetailBlank</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>    <span class="k">return</span> <span class="o">!</span><span class="n">isDbDetailBlank</span> <span class="o">&amp;</span><span class="n">amp</span><span class="o">;&amp;</span><span class="n">amp</span><span class="o">;</span> <span class="n">TRUSTED</span> <span class="o">==</span> <span class="n">requestTrustIndicator</span><span class="o">;</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">return</span> <span class="n">isDbDetailBlank</span> <span class="o">||</span> <span class="n">shouldUpdateWhenBothNotBlank</span><span class="o">(</span><span class="n">requestSummaryDetail</span><span class="o">,</span>
+</span><span class='line'>        <span class="n">dbSummaryDetail</span><span class="o">,</span> <span class="n">requestTrustIndicator</span><span class="o">);</span>
+</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;}&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="kd">private</span> <span class="kt">boolean</span> <span class="n">shouldUpdateWhenBothNotBlank</span><span class="o">(</span><span class="n">String</span> <span class="n">requestSummaryDetail</span><span class="o">,&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span>                                         <span class="n">String</span> <span class="n">dbSummaryDetail</span><span class="o">,</span>
+</span><span class='line'>                                         <span class="n">TrustIndicator</span> <span class="n">requestTrustIndicator</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'><span class="k">return</span> <span class="n">TRUSTED</span> <span class="o">==</span> <span class="n">requestTrustIndicator</span>
+</span><span class='line'>        <span class="o">||</span> <span class="n">UNTRUSTED</span> <span class="o">==</span> <span class="n">requestTrustIndicator</span> <span class="o">&amp;</span><span class="n">amp</span><span class="o">;&amp;</span><span class="n">amp</span><span class="o">;</span> <span class="o">!</span><span class="n">isSame</span><span class="o">(</span><span class="n">requestSummaryDetail</span><span class="o">,</span> <span class="n">dbSummaryDetail</span><span class="o">);</span>
+</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+
+<p>到这里，能做的重构基本上就完成了，基本达到了能让一个健康人理解的程度（吧？）。</p>
+
+<h2>改掉这个Bug</h2>
+
+<h3>1. 改测试</h3>
+
+<p>改Bug的第一步当然是改测试，把现在的测试用例中与新需求的部分改掉，也就帮我们明确了修改目标了。</p>
+
+<p>回顾一下，我们新的需求是神马？</p>
+
+<blockquote><p>不要让untrusted的信息覆盖trusted</p></blockquote>
+
+<p>那么，我们就根据这个来修改我们的测试用例，发现下面的这些测试用例是需要修改的：</p>
+
+<p><div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>SummaryUpdateHelperTest.groovy <a href="https://github.com/YaodanZhang/code-kata/blob/master/src/test/groovy/com/thoughtworks/kata/refactor/SummaryUpdateHelperTest.groovy">https://github.com/YaodanZhang/code-kata/blob/master/src/test/groovy/com/thoughtworks/kata/refactor/SummaryUpdateHelperTest.groovy</a> </span></figcaption>
+<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+</pre></td><td class='code'><pre><code class='groovy'><span class='line'><span class="o">&amp;</span><span class="n">hellip</span><span class="o">;</span>
+</span><span class='line'><span class="nl">where:</span>
+</span><span class='line'><span class="n">requestSummary</span> <span class="o">|</span> <span class="n">requestTrust</span> <span class="o">|</span> <span class="n">dbSummary</span> <span class="o">|</span> <span class="n">dbTrust</span>   <span class="o">|</span> <span class="n">finalSummary</span> <span class="o">|</span> <span class="n">finalTrust</span>
+</span><span class='line'><span class="n">BLANK</span>          <span class="o">|</span> <span class="n">TRUSTED</span>      <span class="o">|</span> <span class="kc">null</span>      <span class="o">|</span> <span class="kc">null</span>      <span class="o">|</span> <span class="n">BLANK</span>        <span class="o">|</span> <span class="n">TRUSTED</span>
+</span><span class='line'><span class="n">BLANK</span>          <span class="o">|</span> <span class="n">TRUSTED</span>      <span class="o">|</span> <span class="n">BLANK</span>     <span class="o">|</span> <span class="n">UNTRUSTED</span> <span class="o">|</span> <span class="n">BLANK</span>        <span class="o">|</span> <span class="n">TRUSTED</span>
+</span><span class='line'><span class="n">BLANK</span>          <span class="o">|</span> <span class="n">TRUSTED</span>      <span class="o">|</span> <span class="n">EMPTY</span>     <span class="o">|</span> <span class="n">UNTRUSTED</span> <span class="o">|</span> <span class="n">EMPTY</span>        <span class="o">|</span> <span class="n">TRUSTED</span><span class="o">&lt;</span><span class="s">/p&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="s">&lt;p&gt;EMPTY          | TRUSTED      | null      | null      | BLANK        | TRUSTED</span>
+</span><span class='line'><span class="s">EMPTY          | TRUSTED      | BLANK     | UNTRUSTED | BLANK        | TRUSTED</span>
+</span><span class='line'><span class="s">EMPTY          | TRUSTED      | EMPTY     | UNTRUSTED | EMPTY        | TRUSTED&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="n">ORIGINAL</span>       <span class="o">|</span> <span class="n">UNTRUSTED</span>    <span class="o">|</span> <span class="n">BLANK</span>     <span class="o">|</span> <span class="n">TRUSTED</span>   <span class="o">|</span> <span class="n">BLANK</span>        <span class="o">|</span> <span class="n">TRUSTED</span>
+</span><span class='line'><span class="n">ORIGINAL</span>       <span class="o">|</span> <span class="n">UNTRUSTED</span>    <span class="o">|</span> <span class="n">EMPTY</span>     <span class="o">|</span> <span class="n">TRUSTED</span>   <span class="o">|</span> <span class="n">EMPTY</span>        <span class="o">|</span> <span class="n">TRUSTED</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="n">UPDATED</span>        <span class="o">|</span> <span class="n">UNTRUSTED</span>    <span class="o">|</span> <span class="n">BLANK</span>     <span class="o">|</span> <span class="n">TRUSTED</span>   <span class="o">|</span> <span class="n">BLANK</span>        <span class="o">|</span> <span class="n">TRUSTED</span>
+</span><span class='line'><span class="n">UPDATED</span>        <span class="o">|</span> <span class="n">UNTRUSTED</span>    <span class="o">|</span> <span class="n">EMPTY</span>     <span class="o">|</span> <span class="n">TRUSTED</span>   <span class="o">|</span> <span class="n">EMPTY</span>        <span class="o">|</span> <span class="n">TRUSTED</span>
+</span><span class='line'><span class="n">UPDATED</span>        <span class="o">|</span> <span class="n">UNTRUSTED</span>    <span class="o">|</span> <span class="n">ORIGINAL</span>  <span class="o">|</span> <span class="n">TRUSTED</span>   <span class="o">|</span> <span class="n">ORIGINAL</span>     <span class="o">|</span> <span class="n">TRUSTED</span>
+</span><span class='line'><span class="o">&amp;</span><span class="n">hellip</span><span class="o">;</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+
+<h3>2. 改实现代码</h3>
+
+<p>这里就是要改一个方法：<code>shouldUpdate()</code>。当<em>Request</em>中的值为空时，我们仅在其<em>Indicator</em>为<em>trusted</em>的时候更新数据库的值；否则，只要不是数据库为<em>trusted</em>且<em>Request</em>为<em>untrusted</em>这种情况，我们都应该更新数据库的值。有了这个理解，代码改起来就简单了：</p>
+
+<p><div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>SummaryUpdateHelper.java <a href="https://github.com/YaodanZhang/code-kata/blob/master/src/main/java/com/thoughtworks/kata/refactor/SummaryUpdateHelper.java">https://github.com/YaodanZhang/code-kata/blob/master/src/main/java/com/thoughtworks/kata/refactor/SummaryUpdateHelper.java</a> </span></figcaption>
+<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="kd">private</span> <span class="kt">boolean</span> <span class="nf">shouldUpdate</span><span class="o">(</span><span class="n">String</span> <span class="n">requestSummaryDetail</span><span class="o">,</span> <span class="n">TrustIndicator</span> <span class="n">requestTrustIndicator</span><span class="o">,&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span>                         <span class="n">TrustIndicator</span> <span class="n">dbTrustIndicator</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'><span class="k">if</span> <span class="o">(</span><span class="n">isNullOrEmpty</span><span class="o">(</span><span class="n">requestSummaryDetail</span><span class="o">))</span> <span class="o">{</span>
+</span><span class='line'>    <span class="k">return</span> <span class="n">TRUSTED</span> <span class="o">==</span> <span class="n">requestTrustIndicator</span><span class="o">;</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'><span class="k">return</span> <span class="o">!(</span><span class="n">TRUSTED</span> <span class="o">==</span> <span class="n">dbTrustIndicator</span> <span class="o">&amp;</span><span class="n">amp</span><span class="o">;&amp;</span><span class="n">amp</span><span class="o">;</span> <span class="n">UNTRUSTED</span> <span class="o">==</span> <span class="n">requestTrustIndicator</span><span class="o">);</span>
+</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+
+<p>这就是最终的结果，大家和之前的代码对比一下，是不是成功将一个50行的if-else块重构到了3行（除了那个无意义的反大括号）。</p>
+
+<h2>事后</h2>
+
+<p>这个一万行的类确实是真实存在于我们一个遗留系统中的，每次新的需求过来，如果涉及到要修改这个类，大家都分外的小心翼翼，因为没有单元测试，功能测试也没法覆盖所有的场景，导致每一行代码的修改造成的风险都是很高的。</p>
+
+<p>渐渐的，在一次又一次的被坑了过后，我们总结出了一套修改这类代码的方法，这就是上面提到的步骤：</p>
+
+<ol>
+<li>找到需要修改的部分，把这个部分抽取出来</li>
+<li>根据业务场景和现有代码逻辑给这部分代码加测试（单元测试，端到端的功能测试等）</li>
+<li>重构</li>
+<li>修改</li>
+<li>重构</li>
+<li>&hellip;</li>
+</ol>
+
+
+<p>改完这个，心情大好，想想，要是如果每天都能重构500行，那么这个一万行的类还是。。。。。。。。。。。。。。。。。。。。。。。。。。。。。。。。。。。。。。。。算了吧，能不改就别改了！</p>
+]]></content>
+  </entry>
+  
+  <entry>
     <title type="html"><![CDATA[Gradle学习笔记-1：基础知识]]></title>
-    <link href="http://YaodanZhang.github.io/blog/2013/08/20/notes-of-gradle-serials-1/"/>
+    <link href="http://yaodanzhang.com/blog/2013/08/20/notes-of-gradle-serials-1/"/>
     <updated>2013-08-20T09:56:00+08:00</updated>
-    <id>http://YaodanZhang.github.io/blog/2013/08/20/notes-of-gradle-serials-1</id>
+    <id>http://yaodanzhang.com/blog/2013/08/20/notes-of-gradle-serials-1</id>
     <content type="html"><![CDATA[<h2>Hello World</h2>
 
 <p>在Gradle中，每一个build都由一个或多个project组成，而每一个project都由一个或多个task组成。</p>
@@ -25,7 +794,7 @@
 <p>这是一个task的Hello World：</p>
 
 <p><div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>build.gradle </span></figcaption>
- <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
 <span class='line-number'>3</span>
 <span class='line-number'>4</span>
@@ -73,7 +842,7 @@
 <p>对于上面的<code>doLast</code>块，有一种简写的方式：</p>
 
 <p><div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>build.gradle </span></figcaption>
- <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
 <span class='line-number'>3</span>
 <span class='line-number'>4</span>
@@ -92,7 +861,7 @@
 <p>在Gradle脚本中可以使用Groovy的语法，如下：</p>
 
 <p><div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>build.gradle </span></figcaption>
- <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
 <span class='line-number'>3</span>
 <span class='line-number'>4</span>
@@ -121,7 +890,7 @@
 <h2>Task之间的依赖</h2>
 
 <p><div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>build.gradle </span></figcaption>
- <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
 <span class='line-number'>3</span>
 <span class='line-number'>4</span>
@@ -155,14 +924,14 @@
 <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
 </pre></td><td class='code'><pre><code class=''><span class='line'>Hello World
-</span><span class='line'>I'm Gradle</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+</span><span class='line'>I&rsquo;m Gradle</span></code></pre></td></tr></table></div></figure></notextile></div></p>
 
 <h2>动态Task</h2>
 
 <p>在Gradle里面，Task是可以动态定义的，如下：</p>
 
 <p><div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>build.gradle </span></figcaption>
- <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
 <span class='line-number'>3</span>
 <span class='line-number'>4</span>
@@ -179,7 +948,7 @@
 <span class='line-number'>15</span>
 <span class='line-number'>16</span>
 <span class='line-number'>17</span>
-</pre></td><td class='code'><pre><code class='groovy'><span class='line'><span class="mi">4</span><span class="o">.</span><span class="na">times</span> <span class="o">{</span> <span class="n">counter</span> <span class="o">-&gt;&lt;</span><span class="s">/p&gt;</span>
+</pre></td><td class='code'><pre><code class='groovy'><span class='line'><span class="mi">4</span><span class="o">.</span><span class="na">times</span> <span class="o">{</span> <span class="n">counter</span> <span class="o">&amp;</span><span class="n">ndash</span><span class="o">;&gt;&lt;</span><span class="s">/p&gt;</span>
 </span><span class='line'>
 </span><span class='line'><span class="s">&lt;pre&gt;&lt;code&gt;task &quot;task$counter&quot;(dependsOn: &quot;depending$counter&quot;) &amp;lt;&amp;lt; {</span>
 </span><span class='line'><span class="s">    println &quot;I&#39;m task number $counter&quot;</span>
@@ -188,7 +957,7 @@
 </span><span class='line'>
 </span><span class='line'><span class="s">&lt;p&gt;}&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
 </span><span class='line'>
-</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="mi">4</span><span class="o">.</span><span class="na">times</span> <span class="o">{</span> <span class="n">counter</span> <span class="o">-&gt;&lt;</span><span class="s">/p&gt;</span>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="mi">4</span><span class="o">.</span><span class="na">times</span> <span class="o">{</span> <span class="n">counter</span> <span class="o">&amp;</span><span class="n">ndash</span><span class="o">;&gt;&lt;</span><span class="s">/p&gt;</span>
 </span><span class='line'>
 </span><span class='line'><span class="s">&lt;pre&gt;&lt;code&gt;task &quot;depending$counter&quot; &amp;lt;&amp;lt; {</span>
 </span><span class='line'><span class="s">    println &quot;I&#39;m depending number $counter&quot;</span>
@@ -203,13 +972,13 @@
 <p><div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>gradle -q task1 </span></figcaption>
 <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>I'm depending number 1
-</span><span class='line'>I'm task number 1</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+</pre></td><td class='code'><pre><code class=''><span class='line'>I&rsquo;m depending number 1
+</span><span class='line'>I&rsquo;m task number 1</span></code></pre></td></tr></table></div></figure></notextile></div></p>
 
 <h2>多次定义Task的依赖</h2>
 
 <p><div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>build.gradle </span></figcaption>
- <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
 <span class='line-number'>3</span>
 <span class='line-number'>4</span>
@@ -228,7 +997,7 @@
 <span class='line-number'>17</span>
 <span class='line-number'>18</span>
 <span class='line-number'>19</span>
-</pre></td><td class='code'><pre><code class='groovy'><span class='line'><span class="mi">4</span><span class="o">.</span><span class="na">times</span> <span class="o">{</span> <span class="n">counter</span> <span class="o">-&gt;&lt;</span><span class="s">/p&gt;</span>
+</pre></td><td class='code'><pre><code class='groovy'><span class='line'><span class="mi">4</span><span class="o">.</span><span class="na">times</span> <span class="o">{</span> <span class="n">counter</span> <span class="o">&amp;</span><span class="n">ndash</span><span class="o">;&gt;&lt;</span><span class="s">/p&gt;</span>
 </span><span class='line'>
 </span><span class='line'><span class="s">&lt;pre&gt;&lt;code&gt;task &quot;task$counter&quot;(dependsOn: &quot;depending$counter&quot;) &amp;lt;&amp;lt; {</span>
 </span><span class='line'><span class="s">    println &quot;I&#39;m task number $counter&quot;</span>
@@ -239,7 +1008,7 @@
 </span><span class='line'>
 </span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="n">task0</span><span class="o">.</span><span class="na">dependsOn</span> <span class="n">task1</span><span class="o">,</span> <span class="n">task2</span><span class="o">&lt;</span><span class="s">/p&gt;</span>
 </span><span class='line'>
-</span><span class='line'><span class="s">&lt;p&gt;4.times { counter -&gt;&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'><span class="s">&lt;p&gt;4.times { counter &amp;ndash;&gt;&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
 </span><span class='line'>
 </span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span><span class="n">task</span> <span class="s2">&quot;depending$counter&quot;</span> <span class="o">&amp;</span><span class="n">lt</span><span class="o">;&amp;</span><span class="n">lt</span><span class="o">;</span> <span class="o">{</span>
 </span><span class='line'>    <span class="n">println</span> <span class="s2">&quot;I&#39;m depending number $counter&quot;</span>
@@ -258,17 +1027,17 @@
 <span class='line-number'>4</span>
 <span class='line-number'>5</span>
 <span class='line-number'>6</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>I'm depending number 0
-</span><span class='line'>I'm depending number 1
-</span><span class='line'>I'm task number 1
-</span><span class='line'>I'm depending number 2
-</span><span class='line'>I'm task number 2
-</span><span class='line'>I'm task number 0</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+</pre></td><td class='code'><pre><code class=''><span class='line'>I&rsquo;m depending number 0
+</span><span class='line'>I&rsquo;m depending number 1
+</span><span class='line'>I&rsquo;m task number 1
+</span><span class='line'>I&rsquo;m depending number 2
+</span><span class='line'>I&rsquo;m task number 2
+</span><span class='line'>I&rsquo;m task number 0</span></code></pre></td></tr></table></div></figure></notextile></div></p>
 
 <p>这里可以看到，Task执行的顺序是根据定义的顺序执行的，如果还有doFirst，则先执行doFirst：</p>
 
 <p><div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>build.gradle </span></figcaption>
- <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
 <span class='line-number'>3</span>
 <span class='line-number'>4</span>
@@ -335,7 +1104,7 @@
 <p>gradle中可以定义默认的task，定义后直接使用<code>gradle</code>命令就可以执行这些task，代码如下：</p>
 
 <p><div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>build.gradle </span></figcaption>
- <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
 <span class='line-number'>3</span>
 <span class='line-number'>4</span>
@@ -354,7 +1123,7 @@
 <span class='line-number'>17</span>
 <span class='line-number'>18</span>
 <span class='line-number'>19</span>
-</pre></td><td class='code'><pre><code class='groovy'><span class='line'><span class="n">defaultTasks</span> <span class="s1">&#39;clean&#39;</span><span class="o">,</span> <span class="s1">&#39;run&#39;</span>
+</pre></td><td class='code'><pre><code class='groovy'><span class='line'><span class="n">defaultTasks</span> <span class="o">&amp;</span><span class="n">lsquo</span><span class="o">;</span><span class="n">clean</span><span class="o">&amp;</span><span class="n">rsquo</span><span class="o">;,</span> <span class="o">&amp;</span><span class="n">lsquo</span><span class="o">;</span><span class="n">run</span><span class="o">&amp;</span><span class="n">rsquo</span><span class="o">;</span>
 </span><span class='line'><span class="n">task</span> <span class="n">clean</span> <span class="o">&amp;</span><span class="n">lt</span><span class="o">;&amp;</span><span class="n">lt</span><span class="o">;</span> <span class="o">{&lt;</span><span class="s">/p&gt;</span>
 </span><span class='line'>
 </span><span class='line'><span class="s">&lt;pre&gt;&lt;code&gt;println &#39;Default Cleaning!&#39;</span>
@@ -389,9 +1158,9 @@
   
   <entry>
     <title type="html"><![CDATA[在线系统数据&服务的迁移策略]]></title>
-    <link href="http://YaodanZhang.github.io/blog/2013/08/19/migration-strategy-for-online-system/"/>
+    <link href="http://yaodanzhang.com/blog/2013/08/19/migration-strategy-for-online-system/"/>
     <updated>2013-08-19T10:11:00+08:00</updated>
-    <id>http://YaodanZhang.github.io/blog/2013/08/19/migration-strategy-for-online-system</id>
+    <id>http://yaodanzhang.com/blog/2013/08/19/migration-strategy-for-online-system</id>
     <content type="html"><![CDATA[<p>当需要在正在运行的在线系统中进行数据或服务的迁移时，有很多问题需要考虑，如何设计迁移策略以保证数据正确迁移，如何处理系统间的依赖，如何保证服务持续可用等等。本文将从一个服务提供者的角度，讨论如何进行数据迁移才能保证对外提供的服务接口前后一致且持续可用，实现对于客户端的无缝迁移。</p>
 
 <p>考虑一个简单的场景，有一个web应用，存有一定数量的用户信息，以前用户的密码都是用明文存在数据库里面的，作为一个有理想有道德的程序员，我现在想升级系统，对这些密码信息进行加密，我已经准备好了加密算法和相关的实现代码，现在问题来了，我要如何加密现有用户的密码呢？</p>
@@ -403,7 +1172,7 @@
 
 <p>存在的问题：如果在转换的过程中有新的数据进来或对原有数据有修改，如何处理？如何保证加密前后的数据同步？</p>
 
-<p>Solution 2：停止服务 --> 执行加密转换 --> 重启服务，用新的代码访问加密后的数据。</p>
+<p>Solution 2：停止服务 &mdash;> 执行加密转换 &mdash;> 重启服务，用新的代码访问加密后的数据。</p>
 
 <p>存在的问题：也许在开发机器上测试100遍，这个过程每次都不超过1分钟，但是根据“Showcase必挂”原理，在产品环境上做同样的事情很可能就要1个小时，甚至更多。如果我的系统1分钟能挣1万块钱，你还告诉我要这么搞么？</p>
 
@@ -437,7 +1206,7 @@
 
 
 <p><div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>UserDAO.java </span></figcaption>
- <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
 <span class='line-number'>3</span>
 <span class='line-number'>4</span>
@@ -473,7 +1242,7 @@
 
 
 <p><div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>UserDAOImpl.java </span></figcaption>
- <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
 <span class='line-number'>3</span>
 <span class='line-number'>4</span>
@@ -543,12 +1312,12 @@
 
 <p>假设以前我们的用户表有三个字段：<code>id</code>，<code>username</code>，<code>password</code>，那么我们实现的第一步是加一个字段<code>encryptedPassword</code>。</p>
 
-<p>这样乍看起来数据库是有冗余的，但是我们如果直接修改<code>password</code>列中的内容，实质上就是删除了一个原有的列，再新加了一列，我们知道，步子迈得大了，是容易扯着蛋的，具体原因Solution 1/2 中已经讲了。</p>
+<p>这样乍看起来数据库是有冗余的，但是我们如果直接修改<code>password</code>列中的内容，实质上就是删除了一个原有的列，再新加了一列，我们知道，步子迈得大了，是容易扯着蛋的，具体原因Solution &frac12; 中已经讲了。</p>
 
 <p>相应的，我们需要增加一个<code>UserDAO</code>接口针对加密数据的实现：<code>UserDAOEncryptedImpl</code>。</p>
 
 <p><div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>UserDAOEncryptedImpl.java </span></figcaption>
- <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
 <span class='line-number'>3</span>
 <span class='line-number'>4</span>
@@ -629,7 +1398,7 @@
 <p>实现代码如下：</p>
 
 <p><div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>CompositeUserDAOImpl.java </span></figcaption>
- <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
 <span class='line-number'>3</span>
 <span class='line-number'>4</span>
@@ -704,7 +1473,7 @@
 <p>修改<code>CompositeUserDAOImpl</code>，使其读数据仍操作未加密数据，但写数据同时修改加密和未加密两个列。</p>
 
 <p><div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>CompositeUserDAOImpl.java </span></figcaption>
- <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
 <span class='line-number'>3</span>
 <span class='line-number'>4</span>
@@ -787,7 +1556,7 @@
 <p>数据迁移完成后，修改<code>CompositeUserDAOImpl</code>，使其读数据从加密数据列中读取，写数据仍同时修改加密和未加密两个列。</p>
 
 <p><div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>CompositeUserDAOImpl.java </span></figcaption>
- <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
 <span class='line-number'>3</span>
 <span class='line-number'>4</span>
@@ -866,7 +1635,7 @@
 <p>上线运行一段时间后，当确保<code>password</code>列中的数据已经完全正确迁移并且没有其他的程序依赖与它，便可以将这一列移除了。<code>CompositeUserDAOImpl</code>中将只调用加密数据的<code>DAO</code>。</p>
 
 <p><div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>CompositeUserDAOImpl.java </span></figcaption>
- <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
 <span class='line-number'>3</span>
 <span class='line-number'>4</span>
