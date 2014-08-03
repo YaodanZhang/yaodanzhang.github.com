@@ -1,4 +1,5 @@
 ---
+published: false
 layout: post
 title: "机器学习经典算法之：PLA"
 date: 2013-09-13 21:46
