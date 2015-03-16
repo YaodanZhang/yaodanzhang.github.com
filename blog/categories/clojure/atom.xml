@@ -4,7 +4,7 @@
   <title><![CDATA[Category: clojure | Yaodan's Blog]]></title>
   <link href="http://yaodanzhang.com/blog/categories/clojure/atom.xml" rel="self"/>
   <link href="http://yaodanzhang.com/"/>
-  <updated>2015-03-16T20:37:29+08:00</updated>
+  <updated>2015-03-16T21:08:25+08:00</updated>
   <id>http://yaodanzhang.com/</id>
   <author>
     <name><![CDATA[Yaodan Zhang (张耀丹)]]></name>
@@ -97,7 +97,7 @@
 
 <h3>定义需求</h3>
 
-<p>这三个操作的描述已经在上面了，要实现他们，我们的需求就是：如果用cons把两个元素绑定在一起，那个可以用<code>car</code>和<code>cdr</code>把他们分别提取出来。</p>
+<p>这三个操作的描述已经在上面了，要实现他们，我们的需求就是：如果用<code>cons</code>把两个元素绑定在一起，那个可以用<code>car</code>和<code>cdr</code>把他们分别提取出来。</p>
 
 <p>那么可以写一个很简单的测试来测我们的实现：</p>
 
@@ -167,11 +167,11 @@
   (c (fn [a, b] b)))
 ```</p>
 
-<p>我们先理解<code>cons</code>。如果c的值是<code>(cons 3 4)</code>，那么c实际上是这样一个函数<code>(λ [f] (f 3 4))</code>，这个函数接收一个函数f作为参数，返回值是以参数[3, 4]调用f的结果。接下来看<code>car</code>，<code>car</code>实际上也是调用c，而这个实参是一个函数<code>(λ [a, b] a)</code>，这个函数接收两个参数，并且返回第一个参数。接下来我们把这个函数代入c，得到的是这样的一个表达式：<code>((λ [f] (f 3 4)) (λ [a, b] a))</code>，继续代入：<code>((λ [a, b] a) 3 4)</code>，这样大家就很容易的能看出结果应该是3了。<code>cdr</code>也是一样的道理。</p>
+<p>我们先理解<code>cons</code>。如果c的值是<code>(cons 3 4)</code>，那么c实际上是这样一个函数<code>(λ [f] (f 3 4))</code>，这个函数接收一个函数f作为参数，返回值是以参数[3, 4]调用f的结果。接下来看<code>car</code>，<code>car</code>实际上也是调用c，而这个实参是一个函数<code>(λ [a, b] a)</code>，这个函数接收两个参数，并且返回第一个参数。接下来我们把这个函数代入c，得到的是这样的一个表达式：<code>((λ [f] (f 3 4)) (λ [a, b] a))</code>，由于前面的<code>(λ [f] (f 3 4))</code>是操作符，将后面的实参代入并替换f过后就会得到：<code>((λ [a, b] a) 3 4)</code>，这样再进行一次实参代入，大家就很容易的能看出结果应该是3了。<code>cdr</code>也是一样的道理。</p>
 
 <h3>二逼实现</h3>
 
-<p>如果限定一下，cons的参数只能是非负整数，那么还可以用这样的方式来定义：<code>(cons a b) --&gt; 2^a * 3^b</code>，即用2的a次方和3的b次方的乘积表示。那么只需要将<code>cons</code>结果对2和3进行质因子分界，就能得到<code>car</code>和<code>cdr</code>。</p>
+<p>如果限定一下，<code>cons</code>的参数只能是非负整数，那么还可以用这样的方式来定义：<code>(cons a b) --&gt; 2^a * 3^b</code>，即用2的a次方和3的b次方的乘积表示。那么只需要将<code>cons</code>结果对2和3进行质因子分界，就能得到<code>car</code>和<code>cdr</code>。</p>
 
 <p>代码在这里：</p>
 
