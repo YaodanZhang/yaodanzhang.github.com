@@ -4,7 +4,7 @@
   <title><![CDATA[Yaodan's Blog]]></title>
   <link href="http://yaodanzhang.com/atom.xml" rel="self"/>
   <link href="http://yaodanzhang.com/"/>
-  <updated>2014-08-04T09:37:44+08:00</updated>
+  <updated>2015-03-16T20:37:29+08:00</updated>
   <id>http://yaodanzhang.com/</id>
   <author>
     <name><![CDATA[Yaodan Zhang (张耀丹)]]></name>
@@ -12,6 +12,286 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Lisp中cons/car/adr的几种实现方式]]></title>
+    <link href="http://yaodanzhang.com/blog/2015/03/16/three-implementations-of-cons-in-lisp/"/>
+    <updated>2015-03-16T15:38:57+08:00</updated>
+    <id>http://yaodanzhang.com/blog/2015/03/16/three-implementations-of-cons-in-lisp</id>
+    <content type="html"><![CDATA[<h2>基本概念</h2>
+
+<p>在Lisp中，<code>cons</code>、<code>car</code>、<code>cdr</code>是三个原始操作符，Lisp在它们（和另外几个原始操作符）的基础上，定义了一个干净、完整的编程语言。关于Lisp的基本概念，有一篇博客写的非常好，强烈推荐大家去读一读：《<a href="http://daiyuwen.freeshell.org/gb/rol/roots_of_lisp.html">Lisp之根源</a>》</p>
+
+<!--more -->
+
+
+<h3>Lisp中的一般表达式</h3>
+
+<p>Lisp中的表达式一般是长这样的：<code>(op args)</code>。</p>
+
+<p>简单来说，他的构成方式就是用一对括号括起一些元素，形成一个表，用来表达一个过程。其中，在表里最左边的元素<code>op</code>叫做<em>运算符</em>，其他元素（0个或多个）都叫做<em>运算对象</em>。要得到一个表达式的值，就是将运算符描述的过程应用于<em>实际参数</em>，而所谓的<em>实参</em>就是那些运算对象的值。</p>
+
+<p>给大家一些例子就好明白了：</p>
+
+<figure class='code'><figcaption><span>lisp expressions</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='clojure'><span class='line'><span class="p">(</span><span class="nb">+ </span><span class="mi">1</span> <span class="mi">1</span><span class="p">)</span>  <span class="nv">--&gt;</span> <span class="mi">2</span>
+</span><span class='line'><span class="p">(</span><span class="nb">- </span><span class="mi">2</span> <span class="mi">1</span><span class="p">)</span>  <span class="nv">--&gt;</span> <span class="mi">1</span>
+</span><span class='line'><span class="p">(</span><span class="nb">* </span><span class="mi">2</span> <span class="mi">3</span><span class="p">)</span>  <span class="nv">--&gt;</span> <span class="mi">6</span>
+</span><span class='line'><span class="p">(</span><span class="nb">/ </span><span class="mi">2</span> <span class="mi">1</span><span class="p">)</span>  <span class="nv">--&gt;</span> <span class="mi">2</span>
+</span><span class='line'><span class="p">(</span><span class="nb">+ </span><span class="mi">1</span> <span class="mi">2</span> <span class="mi">3</span> <span class="mi">4</span><span class="p">)</span>  <span class="nv">--&gt;</span> <span class="mi">10</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>我们把运算符放在所有的运算对象左边，这种形式成为<em>前缀表达式</em>。乍看起来怪怪的，但好处多多，这里就不展开了。</p>
+
+<h3>cons</h3>
+
+<p><code>cons</code>接收两个参数，组成了一个有序对（pair）。这是一个很简单的数据结构，但是由于<code>cons</code>的参数可以是任意类型，那么在这基础上就可以组成各种各样的数据结构了。</p>
+
+<p>基本的有序对：</p>
+
+<figure class='code'><figcaption><span>pair</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='clojure'><span class='line'><span class="p">(</span><span class="nb">cons </span><span class="mi">17</span> <span class="mi">29</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="nv">*</span>
+</span><span class='line'> <span class="nb">/ </span><span class="err">\</span>
+</span><span class='line'><span class="mi">17</span> <span class="mi">29</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>链表：</p>
+
+<figure class='code'><figcaption><span>list</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='clojure'><span class='line'><span class="p">(</span><span class="nb">cons </span><span class="mi">3</span> <span class="p">(</span><span class="nb">cons </span><span class="mi">5</span> <span class="p">(</span><span class="nb">cons </span><span class="mi">7</span> <span class="p">(</span><span class="nb">cons </span><span class="mi">9</span> <span class="nv">nil</span><span class="p">))))</span>
+</span><span class='line'>
+</span><span class='line'> <span class="nv">*--*--*--*--nil</span>
+</span><span class='line'> <span class="err">|</span>  <span class="err">|</span>  <span class="err">|</span>  <span class="err">|</span>
+</span><span class='line'> <span class="mi">3</span>  <span class="mi">5</span>  <span class="mi">7</span>  <span class="mi">9</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>二叉树：</p>
+
+<figure class='code'><figcaption><span>tree</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='clojure'><span class='line'><span class="p">(</span><span class="nb">cons </span><span class="p">(</span><span class="nb">cons </span><span class="mi">1</span> <span class="mi">2</span><span class="p">)</span> <span class="p">(</span><span class="nb">cons </span><span class="mi">3</span> <span class="mi">4</span><span class="p">))</span>
+</span><span class='line'>
+</span><span class='line'>   <span class="nv">*</span>
+</span><span class='line'>  <span class="nb">/ </span><span class="err">\</span>
+</span><span class='line'> <span class="nb">* </span>  <span class="nv">*</span>
+</span><span class='line'><span class="nb">/ </span><span class="sc">\ </span><span class="nb">/ </span><span class="err">\</span>
+</span><span class='line'><span class="mi">1</span> <span class="mi">2</span> <span class="mi">3</span> <span class="mi">4</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>car/cdr</h3>
+
+<p>对于一个<code>cons</code>组成的有序对，我们可以用<code>car</code>取第一个元素，用<code>cdr</code>取第二个元素。</p>
+
+<p>例子：</p>
+
+<figure class='code'><figcaption><span>car & cdr</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='clojure'><span class='line'><span class="p">(</span><span class="nf">car</span> <span class="p">(</span><span class="nb">cons </span><span class="mi">1</span> <span class="mi">2</span><span class="p">))</span> <span class="nv">--&gt;</span> <span class="mi">1</span>
+</span><span class='line'><span class="p">(</span><span class="nf">cdr</span> <span class="p">(</span><span class="nb">cons </span><span class="mi">1</span> <span class="mi">2</span><span class="p">))</span> <span class="nv">--&gt;</span> <span class="mi">2</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>如何实现cons/car/cdr</h2>
+
+<p>在一般的Lisp方言里，由于这三个操作太重要，太原始了，为了效率，一般都是直接实现的。但是我们学习的时候还是可以想想如何自己来实现这三个操作的。</p>
+
+<h3>定义需求</h3>
+
+<p>这三个操作的描述已经在上面了，要实现他们，我们的需求就是：如果用cons把两个元素绑定在一起，那个可以用<code>car</code>和<code>cdr</code>把他们分别提取出来。</p>
+
+<p>那么可以写一个很简单的测试来测我们的实现：</p>
+
+<figure class='code'><figcaption><span>cons_test.clj</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='clojure'><span class='line'><span class="p">(</span><span class="nf">deftest</span> <span class="nv">cons-test</span>
+</span><span class='line'>  <span class="p">(</span><span class="nf">testing</span> <span class="s">&quot;test my cons&quot;</span>
+</span><span class='line'>    <span class="p">(</span><span class="nf">is</span> <span class="p">(</span><span class="nb">= </span><span class="p">(</span><span class="nf">car</span> <span class="p">(</span><span class="nb">cons </span><span class="mi">17</span> <span class="mi">29</span><span class="p">))</span> <span class="mi">17</span><span class="p">))</span>
+</span><span class='line'>    <span class="p">(</span><span class="nf">is</span> <span class="p">(</span><span class="nb">= </span><span class="p">(</span><span class="nf">cdr</span> <span class="p">(</span><span class="nb">cons </span><span class="mi">17</span> <span class="mi">29</span><span class="p">))</span> <span class="mi">29</span><span class="p">))))</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>普通实现</h3>
+
+<p>直接上代码了：</p>
+
+<figure class='code'><figcaption><span>cons.clj</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class='clojure'><span class='line'><span class="p">(</span><span class="kd">defn </span><span class="nv">cons</span>
+</span><span class='line'>  <span class="p">[</span><span class="nv">a</span>, <span class="nv">b</span><span class="p">]</span>
+</span><span class='line'>  <span class="p">(</span><span class="k">fn </span><span class="p">[</span><span class="nv">m</span><span class="p">]</span> <span class="p">(</span><span class="k">if </span><span class="p">(</span><span class="nb">= </span><span class="nv">m</span> <span class="mi">0</span><span class="p">)</span> <span class="nv">a</span> <span class="nv">b</span><span class="p">)))</span>
+</span><span class='line'>
+</span><span class='line'><span class="p">(</span><span class="kd">defn </span><span class="nv">car</span>
+</span><span class='line'>  <span class="p">[</span><span class="nv">c</span><span class="p">]</span>
+</span><span class='line'>  <span class="p">(</span><span class="nf">c</span> <span class="mi">0</span><span class="p">))</span>
+</span><span class='line'>
+</span><span class='line'><span class="p">(</span><span class="kd">defn </span><span class="nv">cdr</span>
+</span><span class='line'>  <span class="p">[</span><span class="nv">c</span><span class="p">]</span>
+</span><span class='line'>  <span class="p">(</span><span class="nf">c</span> <span class="mi">1</span><span class="p">))</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>我们说过了，<code>cons</code>实际上是用来定义一种数据，这个数据由两个元素组成。但是，我们的实现完全没有用到任何的数据结构，只是用过程就把他实现了。</p>
+
+<p>这里面<code>cons</code>操作的结果不是数据，而是一个函数，这里直接返回了一个lambda表达式，当然也可以返回一个有名字的函数，像下面这样：</p>
+
+<figure class='code'><figcaption><span>cons.clj</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class='clojure'><span class='line'><span class="p">(</span><span class="kd">defn </span><span class="nv">cons</span>
+</span><span class='line'>  <span class="p">[</span><span class="nv">a</span>, <span class="nv">b</span><span class="p">]</span>
+</span><span class='line'>  <span class="p">(</span><span class="kd">defn </span><span class="nv">dispatch</span>
+</span><span class='line'>    <span class="p">[</span><span class="nv">m</span><span class="p">]</span>
+</span><span class='line'>    <span class="p">(</span><span class="k">if </span><span class="p">(</span><span class="nb">= </span><span class="nv">m</span> <span class="mi">0</span><span class="p">)</span> <span class="nv">a</span> <span class="nv">b</span><span class="p">))</span>
+</span><span class='line'>  <span class="nv">dispath</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>比如c的值是<code>(cons 3 4)</code>，那么c实际上是这样一个函数<code>(λ [m] (if (= m 0) 3 4)</code>，他的意思是给一个参数m，如果m的值是0，那么返回3（第一个元素），否则返回4（第二个元素）。再看看我们定义的<code>car</code>，他实际上是将0作为参数调用上面这个函数，结果返回3。<code>cdr</code>也是一样的道理。</p>
+
+<p>这就是一个纯过程的实现，但是这里面m啊，0啊这些东西看起来还是很恶心，于是我们有了另外一个版本。</p>
+
+<h3>文艺实现</h3>
+
+<p>还是先上代码：</p>
+
+<figure class='code'><figcaption><span>cons.clj</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class='clojure'><span class='line'><span class="p">(</span><span class="kd">defn </span><span class="nv">cons</span>
+</span><span class='line'>  <span class="p">[</span><span class="nv">a</span>, <span class="nv">b</span><span class="p">]</span>
+</span><span class='line'>  <span class="p">(</span><span class="k">fn </span><span class="p">[</span><span class="nv">f</span><span class="p">]</span> <span class="p">(</span><span class="nf">f</span> <span class="nv">a</span> <span class="nv">b</span><span class="p">)))</span>
+</span><span class='line'>
+</span><span class='line'><span class="p">(</span><span class="kd">defn </span><span class="nv">car</span>
+</span><span class='line'>  <span class="p">[</span><span class="nv">c</span><span class="p">]</span>
+</span><span class='line'>  <span class="p">(</span><span class="nf">c</span> <span class="p">(</span><span class="k">fn </span><span class="p">[</span><span class="nv">a</span>, <span class="nv">b</span><span class="p">]</span> <span class="nv">a</span><span class="p">)))</span>
+</span><span class='line'>
+</span><span class='line'><span class="p">(</span><span class="kd">defn </span><span class="nv">cdr</span>
+</span><span class='line'>  <span class="p">[</span><span class="nv">c</span><span class="p">]</span>
+</span><span class='line'>  <span class="p">(</span><span class="nf">c</span> <span class="p">(</span><span class="k">fn </span><span class="p">[</span><span class="nv">a</span>, <span class="nv">b</span><span class="p">]</span> <span class="nv">b</span><span class="p">)))</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>我们先理解<code>cons</code>。如果c的值是<code>(cons 3 4)</code>，那么c实际上是这样一个函数<code>(λ [f] (f 3 4))</code>，这个函数接收一个函数f作为参数，返回值是以参数[3, 4]调用f的结果。接下来看<code>car</code>，<code>car</code>实际上也是调用c，而这个实参是一个函数<code>(λ [a, b] a)</code>，这个函数接收两个参数，并且返回第一个参数。接下来我们把这个函数代入c，得到的是这样的一个表达式：<code>((λ [f] (f 3 4)) (λ [a, b] a))</code>，继续代入：<code>((λ [a, b] a) 3 4)</code>，这样大家就很容易的能看出结果应该是3了。<code>cdr</code>也是一样的道理。</p>
+
+<h3>二逼实现</h3>
+
+<p>如果限定一下，cons的参数只能是非负整数，那么还可以用这样的方式来定义：<code>(cons a b) --&gt; 2^a * 3^b</code>，即用2的a次方和3的b次方的乘积表示。那么只需要将<code>cons</code>结果对2和3进行质因子分界，就能得到<code>car</code>和<code>cdr</code>。</p>
+
+<p>代码在这里：</p>
+
+<figure class='code'><figcaption><span>cons.clj</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+</pre></td><td class='code'><pre><code class='clojure'><span class='line'><span class="p">(</span><span class="kd">defn </span><span class="nv">cons3</span>
+</span><span class='line'>  <span class="p">[</span><span class="nv">a</span>, <span class="nv">b</span><span class="p">]</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="p">(</span><span class="kd">defn </span><span class="nv">sqr</span>
+</span><span class='line'>    <span class="p">[</span><span class="nv">x</span>, <span class="nv">n</span><span class="p">]</span>
+</span><span class='line'>    <span class="p">(</span><span class="nb">cond </span><span class="p">(</span><span class="nb">= </span><span class="nv">n</span> <span class="mi">0</span><span class="p">)</span> <span class="mi">1</span>
+</span><span class='line'>          <span class="p">(</span><span class="nb">= </span><span class="nv">n</span> <span class="mi">1</span><span class="p">)</span> <span class="nv">x</span>
+</span><span class='line'>          <span class="p">(</span><span class="nb">&gt; </span><span class="nv">n</span> <span class="mi">1</span><span class="p">)</span> <span class="p">(</span><span class="nb">* </span><span class="nv">x</span> <span class="p">(</span><span class="nf">sqr</span> <span class="nv">x</span> <span class="p">(</span><span class="nb">- </span><span class="nv">n</span> <span class="mi">1</span><span class="p">)))</span>
+</span><span class='line'>          <span class="ss">:else</span> <span class="p">(</span><span class="nf">throw</span> <span class="p">(</span><span class="nf">.IllegalArgumentException</span> <span class="s">&quot;wrong param&quot;</span><span class="p">))))</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="p">(</span><span class="nb">* </span><span class="p">(</span><span class="nf">sqr</span> <span class="mi">2</span> <span class="nv">a</span><span class="p">)</span> <span class="p">(</span><span class="nf">sqr</span> <span class="mi">3</span> <span class="nv">b</span><span class="p">)))</span>
+</span><span class='line'>
+</span><span class='line'><span class="p">(</span><span class="kd">defn </span><span class="nv">factor</span>
+</span><span class='line'>  <span class="p">[</span><span class="nv">x</span>, <span class="nv">a</span><span class="p">]</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="p">(</span><span class="kd">defn </span><span class="nv">iter</span>
+</span><span class='line'>    <span class="p">[</span><span class="nv">x</span>, <span class="nv">n</span><span class="p">]</span>
+</span><span class='line'>    <span class="p">(</span><span class="k">if </span><span class="p">(</span><span class="nb">= </span><span class="mi">0</span> <span class="p">(</span><span class="nf">mod</span> <span class="nv">x</span> <span class="nv">a</span><span class="p">))</span> <span class="p">(</span><span class="nf">iter</span> <span class="p">(</span><span class="nb">/ </span><span class="nv">x</span> <span class="nv">a</span><span class="p">)</span> <span class="p">(</span><span class="nb">+ </span><span class="nv">n</span> <span class="mi">1</span><span class="p">))</span>
+</span><span class='line'>        <span class="nv">n</span><span class="p">))</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="p">(</span><span class="nf">iter</span> <span class="nv">x</span> <span class="mi">0</span><span class="p">))</span>
+</span><span class='line'>
+</span><span class='line'><span class="p">(</span><span class="kd">defn </span><span class="nv">car3</span>
+</span><span class='line'>  <span class="p">[</span><span class="nv">c</span><span class="p">]</span>
+</span><span class='line'>  <span class="p">(</span><span class="nf">factor</span> <span class="nv">c</span> <span class="mi">2</span><span class="p">))</span>
+</span><span class='line'>
+</span><span class='line'><span class="p">(</span><span class="kd">defn </span><span class="nv">cdr3</span>
+</span><span class='line'>  <span class="p">[</span><span class="nv">c</span><span class="p">]</span>
+</span><span class='line'>  <span class="p">(</span><span class="nf">factor</span> <span class="nv">c</span> <span class="mi">3</span><span class="p">))</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>总结</h2>
+
+<p><code>cons</code>的这几种实现方式体现的其实就是在Lisp中对数据进行抽象的方式。我们用的是完全过程化的方式，过程的这种使用方法和我们关于数据应该是什么样的直观认识大相径庭。</p>
+
+<p>把过程当作对象去操作，这为我们提供了一种表示复杂数据的能力。</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[如何将50行的if-else块重构成3行]]></title>

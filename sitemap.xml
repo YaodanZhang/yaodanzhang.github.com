@@ -3,6 +3,12 @@
   
   
   <url>
+    <loc>http://yaodanzhang.com/blog/2015/03/16/three-implementations-of-cons-in-lisp/</loc>
+    <lastmod>2015-03-16T15:38:57+08:00</lastmod>
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
     <loc>http://yaodanzhang.com/blog/2014/07/08/how-to-refactor-a-50-lines-if-else-clause-to-3-lines/</loc>
     <lastmod>2014-07-08T10:52:00+08:00</lastmod>
     <priority>0.8</priority>
@@ -29,14 +35,14 @@
   
   <url>
     <loc>http://yaodanzhang.com/blog/archives/</loc>
-    <lastmod>2014-08-04T09:37:44+08:00</lastmod>
+    <lastmod>2015-03-16T20:37:29+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   
   <url>
     <loc>http://yaodanzhang.com/</loc>
-    <lastmod>2014-08-04T09:37:44+08:00</lastmod>
+    <lastmod>2015-03-16T20:37:29+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>

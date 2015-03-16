@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: clojure | Yaodan's Blog]]></title>
+  <link href="http://yaodanzhang.com/blog/categories/clojure/atom.xml" rel="self"/>
+  <link href="http://yaodanzhang.com/"/>
+  <updated>2015-03-16T20:37:29+08:00</updated>
+  <id>http://yaodanzhang.com/</id>
+  <author>
+    <name><![CDATA[Yaodan Zhang (张耀丹)]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Lisp中cons/car/adr的几种实现方式]]></title>
+    <link href="http://yaodanzhang.com/blog/2015/03/16/three-implementations-of-cons-in-lisp/"/>
+    <updated>2015-03-16T15:38:57+08:00</updated>
+    <id>http://yaodanzhang.com/blog/2015/03/16/three-implementations-of-cons-in-lisp</id>
+    <content type="html"><![CDATA[<h2>基本概念</h2>
+
+<p>在Lisp中，<code>cons</code>、<code>car</code>、<code>cdr</code>是三个原始操作符，Lisp在它们（和另外几个原始操作符）的基础上，定义了一个干净、完整的编程语言。关于Lisp的基本概念，有一篇博客写的非常好，强烈推荐大家去读一读：《<a href="http://daiyuwen.freeshell.org/gb/rol/roots_of_lisp.html">Lisp之根源</a>》</p>
+
+<!--more -->
+
+
+<h3>Lisp中的一般表达式</h3>
+
+<p>Lisp中的表达式一般是长这样的：<code>(op args)</code>。</p>
+
+<p>简单来说，他的构成方式就是用一对括号括起一些元素，形成一个表，用来表达一个过程。其中，在表里最左边的元素<code>op</code>叫做<em>运算符</em>，其他元素（0个或多个）都叫做<em>运算对象</em>。要得到一个表达式的值，就是将运算符描述的过程应用于<em>实际参数</em>，而所谓的<em>实参</em>就是那些运算对象的值。</p>
+
+<p>给大家一些例子就好明白了：</p>
+
+<p><code>clojure lisp expressions
+(+ 1 1)  --&gt; 2
+(- 2 1)  --&gt; 1
+(* 2 3)  --&gt; 6
+(/ 2 1)  --&gt; 2
+(+ 1 2 3 4)  --&gt; 10
+</code></p>
+
+<p>我们把运算符放在所有的运算对象左边，这种形式成为<em>前缀表达式</em>。乍看起来怪怪的，但好处多多，这里就不展开了。</p>
+
+<h3>cons</h3>
+
+<p><code>cons</code>接收两个参数，组成了一个有序对（pair）。这是一个很简单的数据结构，但是由于<code>cons</code>的参数可以是任意类型，那么在这基础上就可以组成各种各样的数据结构了。</p>
+
+<p>基本的有序对：</p>
+
+<p>``` clojure pair
+(cons 17 29)</p>
+
+<p>  *
+ / \
+17 29</p>
+
+<p>```</p>
+
+<p>链表：</p>
+
+<p>``` clojure list
+(cons 3 (cons 5 (cons 7 (cons 9 nil))))</p>
+
+<p> <em>&mdash;</em>&mdash;<em>&mdash;</em>&mdash;nil
+ |  |  |  |
+ 3  5  7  9
+```</p>
+
+<p>二叉树：</p>
+
+<p>``` clojure tree
+(cons (cons 1 2) (cons 3 4))</p>
+
+<p>   *
+  / \
+ *   *
+/ \ / \
+1 2 3 4
+```</p>
+
+<h3>car/cdr</h3>
+
+<p>对于一个<code>cons</code>组成的有序对，我们可以用<code>car</code>取第一个元素，用<code>cdr</code>取第二个元素。</p>
+
+<p>例子：</p>
+
+<p><code>clojure car &amp; cdr
+(car (cons 1 2)) --&gt; 1
+(cdr (cons 1 2)) --&gt; 2
+</code></p>
+
+<h2>如何实现cons/car/cdr</h2>
+
+<p>在一般的Lisp方言里，由于这三个操作太重要，太原始了，为了效率，一般都是直接实现的。但是我们学习的时候还是可以想想如何自己来实现这三个操作的。</p>
+
+<h3>定义需求</h3>
+
+<p>这三个操作的描述已经在上面了，要实现他们，我们的需求就是：如果用cons把两个元素绑定在一起，那个可以用<code>car</code>和<code>cdr</code>把他们分别提取出来。</p>
+
+<p>那么可以写一个很简单的测试来测我们的实现：</p>
+
+<p>``` clojure cons_test.clj
+(deftest cons-test
+  (testing &ldquo;test my cons&rdquo;</p>
+
+<pre><code>(is (= (car (cons 17 29)) 17))
+(is (= (cdr (cons 17 29)) 29))))
+</code></pre>
+
+<p>```</p>
+
+<h3>普通实现</h3>
+
+<p>直接上代码了：</p>
+
+<p>``` clojure cons.clj
+(defn cons
+  [a, b]
+  (fn [m] (if (= m 0) a b)))</p>
+
+<p>(defn car
+  [c]
+  (c 0))</p>
+
+<p>(defn cdr
+  [c]
+  (c 1))
+```</p>
+
+<p>我们说过了，<code>cons</code>实际上是用来定义一种数据，这个数据由两个元素组成。但是，我们的实现完全没有用到任何的数据结构，只是用过程就把他实现了。</p>
+
+<p>这里面<code>cons</code>操作的结果不是数据，而是一个函数，这里直接返回了一个lambda表达式，当然也可以返回一个有名字的函数，像下面这样：</p>
+
+<p>``` clojure cons.clj
+(defn cons
+  [a, b]
+  (defn dispatch</p>
+
+<pre><code>[m]
+(if (= m 0) a b))
+</code></pre>
+
+<p>  dispath)
+```</p>
+
+<p>比如c的值是<code>(cons 3 4)</code>，那么c实际上是这样一个函数<code>(λ [m] (if (= m 0) 3 4)</code>，他的意思是给一个参数m，如果m的值是0，那么返回3（第一个元素），否则返回4（第二个元素）。再看看我们定义的<code>car</code>，他实际上是将0作为参数调用上面这个函数，结果返回3。<code>cdr</code>也是一样的道理。</p>
+
+<p>这就是一个纯过程的实现，但是这里面m啊，0啊这些东西看起来还是很恶心，于是我们有了另外一个版本。</p>
+
+<h3>文艺实现</h3>
+
+<p>还是先上代码：</p>
+
+<p>```
+(defn cons
+  [a, b]
+  (fn [f] (f a b)))</p>
+
+<p>(defn car
+  [c]
+  (c (fn [a, b] a)))</p>
+
+<p>(defn cdr
+  [c]
+  (c (fn [a, b] b)))
+```</p>
+
+<p>我们先理解<code>cons</code>。如果c的值是<code>(cons 3 4)</code>，那么c实际上是这样一个函数<code>(λ [f] (f 3 4))</code>，这个函数接收一个函数f作为参数，返回值是以参数[3, 4]调用f的结果。接下来看<code>car</code>，<code>car</code>实际上也是调用c，而这个实参是一个函数<code>(λ [a, b] a)</code>，这个函数接收两个参数，并且返回第一个参数。接下来我们把这个函数代入c，得到的是这样的一个表达式：<code>((λ [f] (f 3 4)) (λ [a, b] a))</code>，继续代入：<code>((λ [a, b] a) 3 4)</code>，这样大家就很容易的能看出结果应该是3了。<code>cdr</code>也是一样的道理。</p>
+
+<h3>二逼实现</h3>
+
+<p>如果限定一下，cons的参数只能是非负整数，那么还可以用这样的方式来定义：<code>(cons a b) --&gt; 2^a * 3^b</code>，即用2的a次方和3的b次方的乘积表示。那么只需要将<code>cons</code>结果对2和3进行质因子分界，就能得到<code>car</code>和<code>cdr</code>。</p>
+
+<p>代码在这里：</p>
+
+<p>```
+(defn cons3
+  [a, b]</p>
+
+<p>  (defn sqr</p>
+
+<pre><code>[x, n]
+(cond (= n 0) 1
+      (= n 1) x
+      (&gt; n 1) (* x (sqr x (- n 1)))
+      :else (throw (.IllegalArgumentException "wrong param"))))
+</code></pre>
+
+<p>  (* (sqr 2 a) (sqr 3 b)))</p>
+
+<p>(defn factor
+  [x, a]</p>
+
+<p>  (defn iter</p>
+
+<pre><code>[x, n]
+(if (= 0 (mod x a)) (iter (/ x a) (+ n 1))
+    n))
+</code></pre>
+
+<p>  (iter x 0))</p>
+
+<p>(defn car3
+  [c]
+  (factor c 2))</p>
+
+<p>(defn cdr3
+  [c]
+  (factor c 3))
+```</p>
+
+<h2>总结</h2>
+
+<p><code>cons</code>的这几种实现方式体现的其实就是在Lisp中对数据进行抽象的方式。我们用的是完全过程化的方式，过程的这种使用方法和我们关于数据应该是什么样的直观认识大相径庭。</p>
+
+<p>把过程当作对象去操作，这为我们提供了一种表示复杂数据的能力。</p>
+]]></content>
+  </entry>
+  
+</feed>
