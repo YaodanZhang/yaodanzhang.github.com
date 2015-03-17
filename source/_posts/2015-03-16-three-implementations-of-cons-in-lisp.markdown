@@ -157,7 +157,7 @@ Lisp中的表达式一般是长这样的：`(op args)`。
 代码在这里：
 
 ```
-(defn cons3
+(defn cons
   [a, b]
 
   (defn sqr
@@ -179,11 +179,11 @@ Lisp中的表达式一般是长这样的：`(op args)`。
 
   (iter x 0))
 
-(defn car3
+(defn car
   [c]
   (factor c 2))
 
-(defn cdr3
+(defn cdr
   [c]
   (factor c 3))
 ```
