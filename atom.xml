@@ -4,7 +4,7 @@
   <title><![CDATA[Yaodan's Blog]]></title>
   <link href="http://yaodanzhang.com/atom.xml" rel="self"/>
   <link href="http://yaodanzhang.com/"/>
-  <updated>2015-03-16T21:08:25+08:00</updated>
+  <updated>2015-03-17T16:57:27+08:00</updated>
   <id>http://yaodanzhang.com/</id>
   <author>
     <name><![CDATA[Yaodan Zhang (张耀丹)]]></name>
@@ -253,7 +253,7 @@
 <span class='line-number'>27</span>
 <span class='line-number'>28</span>
 <span class='line-number'>29</span>
-</pre></td><td class='code'><pre><code class='clojure'><span class='line'><span class="p">(</span><span class="kd">defn </span><span class="nv">cons3</span>
+</pre></td><td class='code'><pre><code class='clojure'><span class='line'><span class="p">(</span><span class="kd">defn </span><span class="nv">cons</span>
 </span><span class='line'>  <span class="p">[</span><span class="nv">a</span>, <span class="nv">b</span><span class="p">]</span>
 </span><span class='line'>
 </span><span class='line'>  <span class="p">(</span><span class="kd">defn </span><span class="nv">sqr</span>
@@ -275,11 +275,11 @@
 </span><span class='line'>
 </span><span class='line'>  <span class="p">(</span><span class="nf">iter</span> <span class="nv">x</span> <span class="mi">0</span><span class="p">))</span>
 </span><span class='line'>
-</span><span class='line'><span class="p">(</span><span class="kd">defn </span><span class="nv">car3</span>
+</span><span class='line'><span class="p">(</span><span class="kd">defn </span><span class="nv">car</span>
 </span><span class='line'>  <span class="p">[</span><span class="nv">c</span><span class="p">]</span>
 </span><span class='line'>  <span class="p">(</span><span class="nf">factor</span> <span class="nv">c</span> <span class="mi">2</span><span class="p">))</span>
 </span><span class='line'>
-</span><span class='line'><span class="p">(</span><span class="kd">defn </span><span class="nv">cdr3</span>
+</span><span class='line'><span class="p">(</span><span class="kd">defn </span><span class="nv">cdr</span>
 </span><span class='line'>  <span class="p">[</span><span class="nv">c</span><span class="p">]</span>
 </span><span class='line'>  <span class="p">(</span><span class="nf">factor</span> <span class="nv">c</span> <span class="mi">3</span><span class="p">))</span>
 </span></code></pre></td></tr></table></div></figure>

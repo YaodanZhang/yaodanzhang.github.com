@@ -4,7 +4,7 @@
   <title><![CDATA[Category: clojure | Yaodan's Blog]]></title>
   <link href="http://yaodanzhang.com/blog/categories/clojure/atom.xml" rel="self"/>
   <link href="http://yaodanzhang.com/"/>
-  <updated>2015-03-16T21:08:25+08:00</updated>
+  <updated>2015-03-17T16:57:27+08:00</updated>
   <id>http://yaodanzhang.com/</id>
   <author>
     <name><![CDATA[Yaodan Zhang (张耀丹)]]></name>
@@ -176,7 +176,7 @@
 <p>代码在这里：</p>
 
 <p>```
-(defn cons3
+(defn cons
   [a, b]</p>
 
 <p>  (defn sqr</p>
@@ -202,11 +202,11 @@
 
 <p>  (iter x 0))</p>
 
-<p>(defn car3
+<p>(defn car
   [c]
   (factor c 2))</p>
 
-<p>(defn cdr3
+<p>(defn cdr
   [c]
   (factor c 3))
 ```</p>
