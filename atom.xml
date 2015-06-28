@@ -4,7 +4,7 @@
   <title><![CDATA[Yaodan's Blog]]></title>
   <link href="http://yaodanzhang.com/atom.xml" rel="self"/>
   <link href="http://yaodanzhang.com/"/>
-  <updated>2015-03-17T16:57:27+08:00</updated>
+  <updated>2015-06-28T18:06:04+08:00</updated>
   <id>http://yaodanzhang.com/</id>
   <author>
     <name><![CDATA[Yaodan Zhang (张耀丹)]]></name>
@@ -12,6 +12,571 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[函数式编程的基石 - Y Combinator]]></title>
+    <link href="http://yaodanzhang.com/blog/2015/06/11/functional-programming-fundamental-y-combinator/"/>
+    <updated>2015-06-11T12:39:44+08:00</updated>
+    <id>http://yaodanzhang.com/blog/2015/06/11/functional-programming-fundamental-y-combinator</id>
+    <content type="html"><![CDATA[<p>本文主要目的是给大家介绍函数式编程中一个非常重要的知识：Y Combinator。包括它是什么，干什么用的，它为什么能够work，它的数学含义以及如何用重构的方式“推倒”他。</p>
+
+<!--more -->
+
+
+<p>（本文用到的示例代码会用JavaScript和Clojure两种语言来写。）</p>
+
+<h2>它是什么</h2>
+
+<p>Y Combinator也叫做不动点组合子（Fix Point Combinator），是由著名的逻辑学家Haskell Curry发明的（或者说是他发现的）。大家看到这个名字有没有很熟悉的感觉？你猜对了，Haskell语言就是为了纪念他而以他命名的。还有，函数式语言里面著名的柯里化（Currying）也是以他命名的。</p>
+
+<p>我们可以用它来计算一个函数（lambda表达式）的不动点。不知道不动点是什么？翻译成中文来说就是它让我们拥有了在函数式语言里面写递归的能力。</p>
+
+<p>那么问题来了，写个递归很简单嘛，为什么没有它我们就写不了呢？</p>
+
+<h3>Lambda演算</h3>
+
+<p>为了让大家更好的理解这个问题，我们还需要学习一点点lambda演算的知识。本来还想先写一篇文章介绍lambda的，后来发现了<a href="http://liujiacai.net/blog/2014/10/12/lambda-calculus-introduction/">这篇文章</a>。里面的内容很详尽，而且写得比较通俗，不熟悉lambda演算的话可以看看。</p>
+
+<p>当然了，大家以编程语言来理解Y Combinator也可以，但是Church最初提出的lambda演算才是最简洁的，也最容易理解。</p>
+
+<p>看完过后有一点请大家务必牢记在心，并跟我一起默念三遍：“lambda演算中的函数都是匿名函数”，“lambda演算中的函数都是匿名函数”，“lambda演算中的函数都是匿名函数”。</p>
+
+<p>好了，我们步入正题。</p>
+
+<h2>问题的提出</h2>
+
+<p>递归函数，相信大家都会写，我们可以先写一个最简单的递归函数：计算阶乘，然后我们来看看有什么问题：</p>
+
+<figure class='code'><figcaption><span>factorial.js</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="kd">var</span> <span class="nx">factorial</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">n</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>  <span class="k">return</span> <span class="nx">n</span> <span class="o">==</span> <span class="mi">1</span> <span class="o">?</span> <span class="mi">1</span> <span class="o">:</span> <span class="nx">n</span> <span class="o">*</span> <span class="nx">factorial</span><span class="p">(</span><span class="nx">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">);</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="nx">factorial</span><span class="p">(</span><span class="mi">5</span><span class="p">);</span> <span class="c1">// 120</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><figcaption><span>factorial.clj</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='clojure'><span class='line'><span class="p">(</span><span class="k">def </span><span class="nv">factorial</span>
+</span><span class='line'>  <span class="p">(</span><span class="k">fn </span><span class="p">[</span><span class="nv">n</span><span class="p">]</span> <span class="p">(</span><span class="k">if </span><span class="p">(</span><span class="nb">= </span><span class="nv">n</span> <span class="mi">1</span><span class="p">)</span> <span class="mi">1</span>
+</span><span class='line'>             <span class="p">(</span><span class="nb">* </span><span class="nv">n</span> <span class="p">(</span><span class="nf">factorial</span> <span class="p">(</span><span class="nb">- </span><span class="nv">n</span> <span class="mi">1</span><span class="p">))))))</span>
+</span><span class='line'>
+</span><span class='line'><span class="p">(</span><span class="nf">factorial</span> <span class="mi">5</span><span class="p">)</span> <span class="c1">; 120</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>我们刚刚说过了，lambda演算中的函数都是匿名函数，也就是说我们定义的函数名都只是语法糖，真正执行的时候其实会代换成这样（根据lambda演算中的β规约）：</p>
+
+<figure class='code'><figcaption><span>factorial.js</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">n</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>  <span class="k">return</span> <span class="nx">n</span> <span class="o">==</span> <span class="mi">1</span> <span class="o">?</span> <span class="mi">1</span> <span class="o">:</span> <span class="nx">n</span> <span class="o">*</span> <span class="nx">factorial</span><span class="p">(</span><span class="nx">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">);</span>
+</span><span class='line'><span class="p">})(</span><span class="mi">5</span><span class="p">);</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><figcaption><span>factorial.clj</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='clojure'><span class='line'><span class="p">((</span><span class="k">fn </span><span class="p">[</span><span class="nv">n</span><span class="p">]</span> <span class="p">(</span><span class="k">if </span><span class="p">(</span><span class="nb">= </span><span class="nv">n</span> <span class="mi">1</span><span class="p">)</span> <span class="mi">1</span>
+</span><span class='line'>             <span class="p">(</span><span class="nb">* </span><span class="nv">n</span> <span class="p">(</span><span class="nf">factorial</span> <span class="p">(</span><span class="nb">- </span><span class="nv">n</span> <span class="mi">1</span><span class="p">)))))</span>
+</span><span class='line'> <span class="mi">5</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>相信到这里大家就能看到问题了，我们用到的函数是没有定义完整的，也就是说在这里，<code>factorial(n - 1)</code>解释器是没法处理的。</p>
+
+<p>那么，为什么我们在C++和Java这样的语言里面可以这么写呢？因为他们是有！名！字！的，在编译的时候编译器会对每个函数生成一个符号，在调用的地方会保存目标函数的符号引用，在运行的时候就能确定被调用函数的地址了。</p>
+
+<h2>Y Combinator的数学意义</h2>
+
+<p>为了解决这个问题，Curry根据函数的不动点，推导出了Y Combinator，从而在理论上让递归问题有了解决的可能。</p>
+
+<p>我们先来看看什么是一个函数的不动点：</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>∀F ∃X -> FX = X</span></code></pre></td></tr></table></div></figure>
+
+
+<p>这句话的意思是对于任意一个函数<code>F</code>，存在一个<code>X</code>，使得<code>F(X) = X</code>。举个栗子，对于抛物线函数<code>f(x) = x^2</code>，它的不动点有两个，<code>0</code>和<code>1</code>，因为<code>f(0) = 0</code>，<code>f(1) = 1</code>。</p>
+
+<p>在这基础上，Curry定义了这样一个函数：</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>Y = λf.((λx.f(xx))(λx.f(xx)))</span></code></pre></td></tr></table></div></figure>
+
+
+<p>他能够达到这样一个目的：对任意的<code>F</code>，都能满足<code>F(YF) = YF</code>。</p>
+
+<h2>Y Combinator的工程意义</h2>
+
+<p>那么这个表达式和我们的递归函数之间有什么关系呢？就这样看确实很难看出他们之间有什么关系，那就先不管他，我们先把递归函数的问题解决了。</p>
+
+<p>我们知道，Lambda演算是与图灵机具有相同计算能力的，那么既然基于图灵机模型发展出来的语言能写递归，我们就应该坚信函数式语言也能写递归。</p>
+
+<p>怎么写？</p>
+
+<p>还是以阶乘为例子，我们可以试着用重构的方式来做。重构之前，我们应该先在心里有个大致的方向：1. 函数要匿名；2. 要尽量通用。</p>
+
+<p>好了，那我们现在就开始重构。</p>
+
+<h3>1. 先写一个“正常”的递归函数</h3>
+
+<figure class='code'><figcaption><span>factorial.js</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="kd">var</span> <span class="nx">factorial</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">n</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>  <span class="k">return</span> <span class="nx">n</span> <span class="o">==</span> <span class="mi">1</span> <span class="o">?</span> <span class="mi">1</span> <span class="o">:</span> <span class="nx">n</span> <span class="o">*</span> <span class="nx">factorial</span><span class="p">(</span><span class="nx">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">);</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="nx">factorial</span><span class="p">(</span><span class="mi">5</span><span class="p">);</span> <span class="c1">// 120</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><figcaption><span>factorial.clj</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='clojure'><span class='line'><span class="p">(</span><span class="k">def </span><span class="nv">factorial</span>
+</span><span class='line'>  <span class="p">(</span><span class="k">fn </span><span class="p">[</span><span class="nv">n</span><span class="p">]</span> <span class="p">(</span><span class="k">if </span><span class="p">(</span><span class="nb">= </span><span class="nv">n</span> <span class="mi">1</span><span class="p">)</span> <span class="mi">1</span>
+</span><span class='line'>             <span class="p">(</span><span class="nb">* </span><span class="nv">n</span> <span class="p">(</span><span class="nf">factorial</span> <span class="p">(</span><span class="nb">- </span><span class="nv">n</span> <span class="mi">1</span><span class="p">))))))</span>
+</span><span class='line'>
+</span><span class='line'><span class="p">(</span><span class="nf">factorial</span> <span class="mi">5</span><span class="p">)</span> <span class="c1">; 120</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>2. 把自己作为参数</h3>
+
+<p>我们说过了上面这个函数式有问题的，问题就在于函数内部的<code>factorial</code>调用是在调用一个还没有定义出来的函数。那么，我们就干脆不让他调用自己了，而是去调用一个已经定义好的函数不就好了吗？那么如何来调用一个定义好了的函数呢？</p>
+
+<p>把自己作为参数传进去嘛。也就是说给<code>factorial</code>函数增加一个参数，这个参数是一个函数，用来计算<code>(n - 1)</code>的递归。代码如下：</p>
+
+<figure class='code'><figcaption><span>factorial.js</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="kd">var</span> <span class="nx">factorial</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">f</span><span class="p">,</span> <span class="nx">n</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>  <span class="k">return</span> <span class="nx">n</span> <span class="o">==</span> <span class="mi">1</span> <span class="o">?</span> <span class="mi">1</span> <span class="o">:</span> <span class="nx">n</span> <span class="o">*</span> <span class="nx">f</span><span class="p">(</span><span class="nx">f</span><span class="p">,</span> <span class="nx">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">);</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="nx">factorial</span><span class="p">(</span><span class="nx">factorial</span><span class="p">,</span> <span class="mi">5</span><span class="p">);</span> <span class="c1">// 120</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><figcaption><span>factorial.clj</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='clojure'><span class='line'><span class="p">(</span><span class="k">def </span><span class="nv">factorial</span>
+</span><span class='line'>  <span class="p">(</span><span class="k">fn </span><span class="p">[</span><span class="nv">f</span> <span class="nv">n</span><span class="p">]</span> <span class="p">(</span><span class="k">if </span><span class="p">(</span><span class="nb">= </span><span class="nv">n</span> <span class="mi">1</span><span class="p">)</span> <span class="mi">1</span>
+</span><span class='line'>             <span class="p">(</span><span class="nb">* </span><span class="nv">n</span> <span class="p">(</span><span class="nf">f</span> <span class="nv">f</span> <span class="p">(</span><span class="nb">- </span><span class="nv">n</span> <span class="mi">1</span><span class="p">))))))</span>
+</span><span class='line'>
+</span><span class='line'><span class="p">(</span><span class="nf">factorial</span> <span class="nv">factorial</span> <span class="mi">5</span><span class="p">)</span> <span class="c1">; 120</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>3. 柯里化</h3>
+
+<p>我们刚刚的修改让<code>factorial</code>函数有了两个参数，这是不好的。函数式编程里面，我们应该让所有的函数都只有一个参数，这个过程就是上文提到的柯里化。关于他的好处我们就不展开了，有兴趣的同志可以去看看<a href="https://en.wikipedia.org/wiki/Currying">这篇文章</a>。代码如下：</p>
+
+<figure class='code'><figcaption><span>factorial.js</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="kd">var</span> <span class="nx">factorial</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">f</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>  <span class="k">return</span> <span class="kd">function</span><span class="p">(</span><span class="nx">n</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">return</span> <span class="nx">n</span> <span class="o">==</span> <span class="mi">1</span> <span class="o">?</span> <span class="mi">1</span> <span class="o">:</span> <span class="nx">n</span> <span class="o">*</span> <span class="nx">f</span><span class="p">(</span><span class="nx">f</span><span class="p">)(</span><span class="nx">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">);</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="nx">factorial</span><span class="p">(</span><span class="nx">factorial</span><span class="p">)(</span><span class="mi">5</span><span class="p">);</span> <span class="c1">// 120</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><figcaption><span>factorial.clj</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='clojure'><span class='line'><span class="p">(</span><span class="k">def </span><span class="nv">factorial</span>
+</span><span class='line'>  <span class="p">(</span><span class="k">fn </span><span class="p">[</span><span class="nv">f</span><span class="p">]</span> <span class="p">(</span><span class="k">fn </span><span class="p">[</span><span class="nv">n</span><span class="p">]</span> <span class="p">(</span><span class="k">if </span><span class="p">(</span><span class="nb">= </span><span class="nv">n</span> <span class="mi">1</span><span class="p">)</span> <span class="mi">1</span>
+</span><span class='line'>                    <span class="p">(</span><span class="nb">* </span><span class="nv">n</span> <span class="p">((</span><span class="nf">f</span> <span class="nv">f</span><span class="p">)</span> <span class="p">(</span><span class="nb">- </span><span class="nv">n</span> <span class="mi">1</span><span class="p">)))))))</span>
+</span><span class='line'>
+</span><span class='line'><span class="p">((</span><span class="nf">factorial</span> <span class="nv">factorial</span><span class="p">)</span> <span class="mi">5</span><span class="p">)</span> <span class="c1">; 120</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>4. 去除重复的自身调用</h3>
+
+<p>我们看到，这两段代码可以工作了，但是还是有个问题，就是调用起来太恶心，<code>factorial(factorial)(n)</code>或者<code>((factorial factorial) n)</code>都把自己传了两遍，我们可以把这段代码抽成一个函数，从而让最终用户的调用更优雅一些。代码如下：</p>
+
+<figure class='code'><figcaption><span>factorial.js</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="kd">var</span> <span class="nx">self_invoke</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">f</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>  <span class="k">return</span> <span class="nx">f</span><span class="p">(</span><span class="nx">f</span><span class="p">);</span>
+</span><span class='line'><span class="p">};</span>
+</span><span class='line'>
+</span><span class='line'><span class="kd">var</span> <span class="nx">factorial</span> <span class="o">=</span> <span class="nx">self_invoke</span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">f</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>  <span class="k">return</span> <span class="kd">function</span><span class="p">(</span><span class="nx">n</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">return</span> <span class="nx">n</span> <span class="o">==</span> <span class="mi">1</span> <span class="o">?</span> <span class="mi">1</span> <span class="o">:</span> <span class="nx">n</span> <span class="o">*</span> <span class="nx">self_invoke</span><span class="p">(</span><span class="nx">f</span><span class="p">)(</span><span class="nx">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">);</span>
+</span><span class='line'>  <span class="p">};</span>
+</span><span class='line'><span class="p">});</span>
+</span><span class='line'>
+</span><span class='line'><span class="nx">factorial</span><span class="p">(</span><span class="mi">5</span><span class="p">);</span> <span class="c1">// 120</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><figcaption><span>factorial.clj</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class='clojure'><span class='line'><span class="p">(</span><span class="k">def </span><span class="nv">self-invoke</span>
+</span><span class='line'>  <span class="p">(</span><span class="k">fn </span><span class="p">[</span><span class="nv">f</span><span class="p">]</span> <span class="p">(</span><span class="nf">f</span> <span class="nv">f</span><span class="p">)))</span>
+</span><span class='line'>
+</span><span class='line'><span class="p">(</span><span class="k">def </span><span class="nv">factorial</span>
+</span><span class='line'>  <span class="p">(</span><span class="nf">self-invoke</span>
+</span><span class='line'>   <span class="p">(</span><span class="k">fn </span><span class="p">[</span><span class="nv">f</span><span class="p">]</span>
+</span><span class='line'>     <span class="p">(</span><span class="k">fn </span><span class="p">[</span><span class="nv">n</span><span class="p">]</span> <span class="p">(</span><span class="k">if </span><span class="p">(</span><span class="nb">= </span><span class="nv">n</span> <span class="mi">1</span><span class="p">)</span> <span class="mi">1</span>
+</span><span class='line'>                <span class="p">(</span><span class="nb">* </span><span class="nv">n</span> <span class="p">((</span><span class="nf">self-invoke</span> <span class="nv">f</span><span class="p">)</span> <span class="p">(</span><span class="nb">- </span><span class="nv">n</span> <span class="mi">1</span><span class="p">))))))))</span>
+</span><span class='line'>
+</span><span class='line'><span class="p">(</span><span class="nf">factorial</span> <span class="mi">5</span><span class="p">)</span> <span class="c1">; 120</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>5. Inline</h3>
+
+<p>上面的代码定义了两个函数，其中的<code>self-invoke</code>是用的有名字的调用，我们的重构目标是使用匿名函数，所以这一步比较简单，就是把<code>self-invoke</code>函数inline。代码如下：</p>
+
+<figure class='code'><figcaption><span>factorial.js</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="kd">var</span> <span class="nx">factorial</span> <span class="o">=</span> <span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">self_invoke</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>  <span class="k">return</span> <span class="nx">self_invoke</span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">f</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">return</span> <span class="kd">function</span><span class="p">(</span><span class="nx">n</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>      <span class="k">return</span> <span class="nx">n</span> <span class="o">==</span> <span class="mi">1</span> <span class="o">?</span> <span class="mi">1</span> <span class="o">:</span> <span class="nx">n</span> <span class="o">*</span> <span class="nx">self_invoke</span><span class="p">(</span><span class="nx">f</span><span class="p">)(</span><span class="nx">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">);</span>
+</span><span class='line'>    <span class="p">};</span>
+</span><span class='line'>  <span class="p">});</span>
+</span><span class='line'><span class="p">})(</span><span class="kd">function</span><span class="p">(</span><span class="nx">f</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>  <span class="k">return</span> <span class="nx">f</span><span class="p">(</span><span class="nx">f</span><span class="p">);</span>
+</span><span class='line'><span class="p">});</span>
+</span><span class='line'>
+</span><span class='line'><span class="nx">factorial</span><span class="p">(</span><span class="mi">5</span><span class="p">);</span> <span class="c1">// 120</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><figcaption><span>factorial.clj</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class='clojure'><span class='line'><span class="p">(</span><span class="k">def </span><span class="nv">factorial</span>
+</span><span class='line'>  <span class="p">((</span><span class="k">fn </span><span class="p">[</span><span class="nv">self-invoke</span><span class="p">]</span>
+</span><span class='line'>     <span class="p">(</span><span class="nf">self-invoke</span>
+</span><span class='line'>      <span class="p">(</span><span class="k">fn </span><span class="p">[</span><span class="nv">f</span><span class="p">]</span>
+</span><span class='line'>        <span class="p">(</span><span class="k">fn </span><span class="p">[</span><span class="nv">n</span><span class="p">]</span>
+</span><span class='line'>          <span class="p">(</span><span class="k">if </span><span class="p">(</span><span class="nb">= </span><span class="nv">n</span> <span class="mi">1</span><span class="p">)</span> <span class="mi">1</span>
+</span><span class='line'>              <span class="p">(</span><span class="nb">* </span><span class="nv">n</span> <span class="p">((</span><span class="nf">self-invoke</span> <span class="nv">f</span><span class="p">)</span> <span class="p">(</span><span class="nb">- </span><span class="nv">n</span> <span class="mi">1</span><span class="p">))))))))</span>
+</span><span class='line'>   <span class="p">(</span><span class="k">fn </span><span class="p">[</span><span class="nv">f</span><span class="p">]</span> <span class="p">(</span><span class="nf">f</span> <span class="nv">f</span><span class="p">))))</span>
+</span><span class='line'>
+</span><span class='line'><span class="p">(</span><span class="nf">factorial</span> <span class="mi">5</span><span class="p">)</span> <span class="c1">; 120</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>6.抽出伪递归</h3>
+
+<p>我们看到，上面这段代码中</p>
+
+<figure class='code'><figcaption><span>factorial.js</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="kd">function</span><span class="p">(</span><span class="nx">n</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>  <span class="k">return</span> <span class="nx">n</span> <span class="o">==</span> <span class="mi">1</span> <span class="o">?</span> <span class="mi">1</span> <span class="o">:</span> <span class="nx">n</span> <span class="o">*</span> <span class="nx">self_invoke</span><span class="p">(</span><span class="nx">f</span><span class="p">)(</span><span class="nx">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">);</span>
+</span><span class='line'><span class="p">};</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><figcaption><span>factorial.clj</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='clojure'><span class='line'><span class="p">(</span><span class="k">fn </span><span class="p">[</span><span class="nv">n</span><span class="p">]</span>
+</span><span class='line'>  <span class="p">(</span><span class="k">if </span><span class="p">(</span><span class="nb">= </span><span class="nv">n</span> <span class="mi">1</span><span class="p">)</span> <span class="mi">1</span>
+</span><span class='line'>      <span class="p">(</span><span class="nb">* </span><span class="nv">n</span> <span class="p">((</span><span class="nf">self-invoke</span> <span class="nv">f</span><span class="p">)</span> <span class="p">(</span><span class="nb">- </span><span class="nv">n</span> <span class="mi">1</span><span class="p">)))))</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>这个结构跟我们最开始的递归函数很像，唯一的区别是这里用<code>self_invoke(f)</code>代替了递归函数中的函数名调用。那么我们可以试着把这一点再抽出来，写出我们最开始的递归函数的样子：</p>
+
+<figure class='code'><figcaption><span>factorial.js</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">self</span><span class="p">){</span>
+</span><span class='line'>  <span class="k">return</span> <span class="kd">function</span><span class="p">(</span><span class="nx">n</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">return</span> <span class="nx">n</span> <span class="o">==</span> <span class="mi">1</span> <span class="o">?</span> <span class="mi">1</span> <span class="o">:</span> <span class="nx">n</span> <span class="o">*</span> <span class="nx">self</span><span class="p">(</span><span class="nx">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">);</span>
+</span><span class='line'>  <span class="p">};</span>
+</span><span class='line'><span class="p">})(</span><span class="kd">function</span><span class="p">(</span><span class="nx">m</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>  <span class="k">return</span> <span class="nx">self_invoke</span><span class="p">(</span><span class="nx">f</span><span class="p">)(</span><span class="nx">m</span><span class="p">);</span>
+</span><span class='line'><span class="p">}));</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><figcaption><span>factorial.clj</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='clojure'><span class='line'><span class="p">((</span><span class="k">fn </span><span class="p">[</span><span class="nv">self</span><span class="p">]</span>
+</span><span class='line'>  <span class="p">(</span><span class="k">fn </span><span class="p">[</span><span class="nv">n</span><span class="p">]</span>
+</span><span class='line'>    <span class="p">(</span><span class="k">if </span><span class="p">(</span><span class="nb">= </span><span class="nv">n</span> <span class="mi">1</span><span class="p">)</span> <span class="mi">1</span>
+</span><span class='line'>        <span class="p">(</span><span class="nb">* </span><span class="nv">n</span> <span class="p">(</span><span class="nf">self</span> <span class="p">(</span><span class="nb">- </span><span class="nv">n</span> <span class="mi">1</span><span class="p">)))))</span>
+</span><span class='line'> <span class="p">(</span><span class="k">fn </span><span class="p">[</span><span class="nv">m</span><span class="p">]</span> <span class="p">((</span><span class="nf">self-invoke</span> <span class="nv">f</span><span class="p">)</span> <span class="nv">m</span><span class="p">)))</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>这样我们就能很清楚的看到，这一部分代码：</p>
+
+<figure class='code'><figcaption><span>factorial.js</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="kd">function</span><span class="p">(</span><span class="nx">self</span><span class="p">){</span>
+</span><span class='line'>  <span class="k">return</span> <span class="kd">function</span><span class="p">(</span><span class="nx">n</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">return</span> <span class="nx">n</span> <span class="o">==</span> <span class="mi">1</span> <span class="o">?</span> <span class="mi">1</span> <span class="o">:</span> <span class="nx">n</span> <span class="o">*</span> <span class="nx">self</span><span class="p">(</span><span class="nx">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">);</span>
+</span><span class='line'>  <span class="p">};</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><figcaption><span>factorial.clj</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='clojure'><span class='line'><span class="p">(</span><span class="k">fn </span><span class="p">[</span><span class="nv">self</span><span class="p">]</span>
+</span><span class='line'>  <span class="p">(</span><span class="k">fn </span><span class="p">[</span><span class="nv">n</span><span class="p">]</span>
+</span><span class='line'>    <span class="p">(</span><span class="k">if </span><span class="p">(</span><span class="nb">= </span><span class="nv">n</span> <span class="mi">1</span><span class="p">)</span> <span class="mi">1</span>
+</span><span class='line'>        <span class="p">(</span><span class="nb">* </span><span class="nv">n</span> <span class="p">(</span><span class="nf">self</span> <span class="p">(</span><span class="nb">- </span><span class="nv">n</span> <span class="mi">1</span><span class="p">))))))</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>简直跟我们直接写出来的递归函数“一摸一样”，唯一的区别是这里增加了一层函数（参数是self）。很明显，如果我们写了一个直接递归的阶乘函数，我们可以很容易的把这个函数改写成上面的样子。更进一步，如果我们写了任意一个递归函数，我们也能很轻易的把它改写成上面的样子。我们把这个函数就叫做<code>伪递归函数</code>。</p>
+
+<p>这个<code>伪递归函数</code>在我们推导过程中是一个<code>可变量</code>，如果能够把它提取出来，那么剩下的就是<code>不变量</code>。也就是说，我们可以把这个<code>不变量</code>应用到任何一个<code>伪递归函数</code>上面，就能得到我们真正可以递归的函数了。</p>
+
+<p>代码如下：</p>
+
+<figure class='code'><figcaption><span>factorial.js</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="kd">var</span> <span class="nx">fake_factorial</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">self</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>  <span class="k">return</span> <span class="kd">function</span><span class="p">(</span><span class="nx">n</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">return</span> <span class="nx">n</span> <span class="o">==</span> <span class="mi">1</span> <span class="o">?</span> <span class="mi">1</span> <span class="o">:</span> <span class="nx">n</span> <span class="o">*</span> <span class="nx">self</span><span class="p">(</span><span class="nx">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">);</span>
+</span><span class='line'>  <span class="p">};</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="kd">var</span> <span class="nx">y</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">fake_rec</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>  <span class="k">return</span> <span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">self_invoke</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">return</span> <span class="nx">self_invoke</span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">f</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>      <span class="k">return</span> <span class="nx">fake_rec</span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">m</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>        <span class="k">return</span> <span class="nx">self_invoke</span><span class="p">(</span><span class="nx">f</span><span class="p">)(</span><span class="nx">m</span><span class="p">);</span>
+</span><span class='line'>      <span class="p">});</span>
+</span><span class='line'>    <span class="p">});</span>
+</span><span class='line'>  <span class="p">})(</span><span class="kd">function</span><span class="p">(</span><span class="nx">f</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">return</span> <span class="nx">f</span><span class="p">(</span><span class="nx">f</span><span class="p">);</span>
+</span><span class='line'>  <span class="p">});</span>
+</span><span class='line'><span class="p">};</span>
+</span><span class='line'>
+</span><span class='line'><span class="kd">var</span> <span class="nx">factorial</span> <span class="o">=</span> <span class="nx">y</span><span class="p">(</span><span class="nx">fake_factorial</span><span class="p">);</span>
+</span><span class='line'>
+</span><span class='line'><span class="nx">factorial</span><span class="p">(</span><span class="mi">5</span><span class="p">);</span> <span class="c1">// 120</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><figcaption><span>factorial.clj</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+</pre></td><td class='code'><pre><code class='clojure'><span class='line'><span class="p">(</span><span class="k">def </span><span class="nv">fake-factorial</span>
+</span><span class='line'>  <span class="p">(</span><span class="k">fn </span><span class="p">[</span><span class="nv">self</span><span class="p">]</span>
+</span><span class='line'>    <span class="p">(</span><span class="k">fn </span><span class="p">[</span><span class="nv">n</span><span class="p">]</span>
+</span><span class='line'>      <span class="p">(</span><span class="k">if </span><span class="p">(</span><span class="nb">= </span><span class="nv">n</span> <span class="mi">1</span><span class="p">)</span> <span class="mi">1</span>
+</span><span class='line'>          <span class="p">(</span><span class="nb">* </span><span class="nv">n</span> <span class="p">(</span><span class="nf">self</span> <span class="p">(</span><span class="nb">- </span><span class="nv">n</span> <span class="mi">1</span><span class="p">)))))))</span>
+</span><span class='line'>
+</span><span class='line'><span class="p">(</span><span class="k">def </span><span class="nv">y</span>
+</span><span class='line'>  <span class="p">(</span><span class="k">fn </span><span class="p">[</span><span class="nv">fake-rec</span><span class="p">]</span> <span class="p">((</span><span class="k">fn </span><span class="p">[</span><span class="nv">self-invoke</span><span class="p">]</span>
+</span><span class='line'>                   <span class="p">(</span><span class="nf">self-invoke</span>
+</span><span class='line'>                    <span class="p">(</span><span class="k">fn </span><span class="p">[</span><span class="nv">f</span><span class="p">]</span>
+</span><span class='line'>                      <span class="p">(</span><span class="nf">fake-rec</span>
+</span><span class='line'>                       <span class="p">(</span><span class="k">fn </span><span class="p">[</span><span class="nv">m</span><span class="p">]</span> <span class="p">((</span><span class="nf">self-invoke</span> <span class="nv">f</span><span class="p">)</span> <span class="nv">m</span><span class="p">))))))</span>
+</span><span class='line'>                 <span class="p">(</span><span class="k">fn </span><span class="p">[</span><span class="nv">f</span><span class="p">]</span> <span class="p">(</span><span class="nf">f</span> <span class="nv">f</span><span class="p">)))))</span>
+</span><span class='line'>
+</span><span class='line'><span class="p">(</span><span class="k">def </span><span class="nv">factorial</span>
+</span><span class='line'>  <span class="p">(</span><span class="nf">y</span> <span class="nv">fake-factorial</span><span class="p">))</span>
+</span><span class='line'>
+</span><span class='line'><span class="p">(</span><span class="nf">factorial</span> <span class="mi">5</span><span class="p">)</span> <span class="c1">; 120</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>这里，<code>y</code>是不变量，<code>fake-factorial</code>是变量。将任意的一个伪递归函数作为实参调用<code>y</code>，就能得到真正的递归函数了。这里的<code>y</code>也就是我们的Y Combinator。</p>
+
+<p>这里推导出来的<code>y</code>还是稍显复杂，我们可以再重构一下，变成这样：</p>
+
+<figure class='code'><figcaption><span>factorial.js</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="kd">var</span> <span class="nx">y</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">fake_rec</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>  <span class="k">return</span> <span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">f</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">return</span> <span class="nx">f</span><span class="p">(</span><span class="nx">f</span><span class="p">);</span>
+</span><span class='line'>  <span class="p">})(</span><span class="kd">function</span><span class="p">(</span><span class="nx">f</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">return</span> <span class="nx">fake_rec</span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">x</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>      <span class="k">return</span> <span class="nx">f</span><span class="p">(</span><span class="nx">f</span><span class="p">)(</span><span class="nx">x</span><span class="p">);</span>
+</span><span class='line'>    <span class="p">});</span>
+</span><span class='line'>  <span class="p">});</span>
+</span><span class='line'><span class="p">};</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><figcaption><span>factorial.clj</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='clojure'><span class='line'><span class="p">(</span><span class="k">def </span><span class="nv">y</span>
+</span><span class='line'>  <span class="p">(</span><span class="k">fn </span><span class="p">[</span><span class="nv">fake-rec</span><span class="p">]</span>
+</span><span class='line'>    <span class="p">((</span><span class="k">fn </span><span class="p">[</span><span class="nv">f</span><span class="p">]</span> <span class="p">(</span><span class="nf">f</span> <span class="nv">f</span><span class="p">))</span> <span class="p">(</span><span class="k">fn </span><span class="p">[</span><span class="nv">f</span><span class="p">]</span>
+</span><span class='line'>                     <span class="p">(</span><span class="nf">fake-rec</span> <span class="p">(</span><span class="k">fn </span><span class="p">[</span><span class="nv">x</span><span class="p">]</span> <span class="p">((</span><span class="nf">f</span> <span class="nv">f</span><span class="p">)</span> <span class="nv">x</span><span class="p">)))))))</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>总结</h2>
+
+<p>到这里，<code>Y Combinator</code>就已经推导完了。</p>
+
+<p>回到我们最开始的地方，<code>Y Combinator</code>的数学定义是对任意的<code>F</code>，都能满足<code>F(YF) = YF</code>。结合我们的推导，可以看出，这里的<code>F</code>其实就是我们的<code>伪递归函数</code>，<code>YF</code>其实就是我们真实的递归函数。伪递归函数<code>F</code>和我们真正的递归函数<code>f</code>之间的关系就是<code>F(f) = f</code>。</p>
+
+<h2>致谢</h2>
+
+<p>感谢太君的<a href="http://cuipengfei.me/blog/2013/04/09/make-y/">这篇文章</a>的启发</p>
+
+<h2>Reference</h2>
+
+<ul>
+<li><a href="http://mindhacks.cn/2006/10/15/cantor-godel-turing-an-eternal-golden-diagonal/">康托尔、哥德尔、图灵——永恒的金色对角线</a>，刘未鹏。</li>
+<li><a href="http://cuipengfei.me/blog/2013/04/09/make-y/">如何一步一步推导出Y Combinator</a>，崔鹏飞。</li>
+<li><a href="https://github.com/zhewuzhou/js-y-combinator/blob/master/y-combinator.js">y-combinator.js</a>，周哲武。</li>
+</ul>
+
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Lisp中cons/car/adr的几种实现方式]]></title>

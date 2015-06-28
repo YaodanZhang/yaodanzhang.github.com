@@ -3,6 +3,12 @@
   
   
   <url>
+    <loc>http://yaodanzhang.com/blog/2015/06/11/functional-programming-fundamental-y-combinator/</loc>
+    <lastmod>2015-06-11T12:39:44+08:00</lastmod>
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
     <loc>http://yaodanzhang.com/blog/2015/03/16/three-implementations-of-cons-in-lisp/</loc>
     <lastmod>2015-03-16T15:38:57+08:00</lastmod>
     <priority>0.8</priority>
@@ -35,14 +41,14 @@
   
   <url>
     <loc>http://yaodanzhang.com/blog/archives/</loc>
-    <lastmod>2015-03-17T16:57:27+08:00</lastmod>
+    <lastmod>2015-06-28T18:06:04+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   
   <url>
     <loc>http://yaodanzhang.com/</loc>
-    <lastmod>2015-03-17T16:57:27+08:00</lastmod>
+    <lastmod>2015-06-28T18:06:04+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
