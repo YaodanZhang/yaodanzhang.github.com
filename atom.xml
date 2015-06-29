@@ -4,7 +4,7 @@
   <title><![CDATA[Yaodan's Blog]]></title>
   <link href="http://yaodanzhang.com/atom.xml" rel="self"/>
   <link href="http://yaodanzhang.com/"/>
-  <updated>2015-06-28T18:09:36+08:00</updated>
+  <updated>2015-06-29T12:10:40+08:00</updated>
   <id>http://yaodanzhang.com/</id>
   <author>
     <name><![CDATA[Yaodan Zhang (张耀丹)]]></name>
@@ -579,7 +579,7 @@
   </entry>
   
   <entry>
-    <title type="html"><![CDATA[Lisp中cons/car/adr的几种实现方式]]></title>
+    <title type="html"><![CDATA[Lisp中cons/car/cdr的几种实现方式]]></title>
     <link href="http://yaodanzhang.com/blog/2015/03/16/three-implementations-of-cons-in-lisp/"/>
     <updated>2015-03-16T15:38:57+08:00</updated>
     <id>http://yaodanzhang.com/blog/2015/03/16/three-implementations-of-cons-in-lisp</id>
