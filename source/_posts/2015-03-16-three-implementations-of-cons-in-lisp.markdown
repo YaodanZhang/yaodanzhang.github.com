@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Lisp中cons/car/adr的几种实现方式"
+title: "Lisp中cons/car/cdr的几种实现方式"
 subtitle: "用过程对数据进行抽象"
 date: 2015-03-16 15:38:57 +0800
 comments: true
