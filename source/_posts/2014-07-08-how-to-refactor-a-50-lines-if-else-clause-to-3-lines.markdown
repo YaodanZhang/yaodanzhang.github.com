@@ -13,7 +13,7 @@ categories: [技术杂谈]
 
 <!--more -->
 
--------------------------------------------我是分割线--------------------------------------------
+------------------------------------------我是分割线-------------------------------------------
 
 里面的500行代码。
 
@@ -27,7 +27,7 @@ categories: [技术杂谈]
 
 由于很多业务上的原因（具体原因就不讨论了），其他系统发过来的更新请求有可能是不受信任的（*untrusted*），因此我们针对*Summary*添加了一个标志位，如果消息源受信任，就把它设置成*trusted*，如果不受信任，就设成*untrusted*。
 
-> 我就这么一说，你就这么一信，这可不是我们真实的客户场景
+> 我就这么一说，你就这么一听，这可不是我们真实的客户场景
 >
 > 客户代码自然是不能传上来给大家看的啦，我已经把这里涉及到的业务场景改的面目全非了
 >
@@ -318,7 +318,7 @@ private boolean shouldUpdateDetail(String requestSummaryDetail, String dbSummary
 
 ### 3. 重新理一下判断条件
 
-从上面这个方法我们可以看到，他的逻辑判断也是很*二*的，很多分支可以合并或者简化，这一步就做这个事情。具体的过程就不一步一步的演示了，有兴趣的童鞋可以去看看我*Github*的[提交记录](https://github.com/YaodanZhang/code-kata/tree/master/src/main/java/com/thoughtworks/kata/refactor)。
+从上面这个方法我们可以看到，他的逻辑判断也是很*二*的，很多分支可以合并或者简化，这一步就做这个事情。具体的过程就不一步一步的演示了，有兴趣的童鞋请在下面留言（我保证不及时回复）。
 
 {% codeblock SummaryUpdateHelper.java https://github.com/YaodanZhang/code-kata/blob/master/src/main/java/com/thoughtworks/kata/refactor/SummaryUpdateHelper.java %}
 private boolean shouldUpdateDetail(String requestSummaryDetail, String dbSummaryDetail,

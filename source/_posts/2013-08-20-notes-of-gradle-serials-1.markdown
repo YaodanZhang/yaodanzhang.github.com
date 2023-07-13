@@ -1,5 +1,5 @@
 ---
-published: true
+published: false 
 layout: post
 title: "Gradle学习笔记-1：基础知识"
 date: 2013-08-20 09:56
